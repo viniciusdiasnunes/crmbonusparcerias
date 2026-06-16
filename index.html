@@ -66,7 +66,7 @@ tr:hover td{background:var(--o50);}
 .fl{font-size:10px;font-weight:700;color:var(--n500);text-transform:uppercase;letter-spacing:0.8px;}
 .fi{padding:9px 12px;border:1.5px solid var(--bdr);border-radius:var(--r);font-size:13px;color:var(--n900);background:var(--white);outline:none;font-family:var(--f);}
 .fi:focus{border-color:var(--orange);}
-.mo{display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:100;align-items:flex-start;justify-content:center;padding:30px 16px;}
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:flex-start;justify-content:center;padding:30px 16px;}
 .mo.open{display:flex;}
 .modal{background:var(--white);border-radius:12px;padding:24px;width:100%;max-width:620px;border-top:4px solid var(--orange);max-height:90vh;overflow-y:auto;}
 .mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
@@ -597,34 +597,6 @@ body.viewer-mode .edit-only{display:none!important;}
 </div>
 
 
-</div><!-- /content -->
-
-<!-- MODAL DETALHE APURAÇÃO -->
-<div class="mo-det" id="modal-det" onclick="if(event.target===this)fecharDetalhes()">
-  <div class="modal-det">
-    <div class="mh">
-      <div>
-        <div class="mt" id="det-title"></div>
-        <div style="font-size:11px;color:var(--n500);margin-top:3px" id="det-sub"></div>
-      </div>
-      <button class="xb" onclick="fecharDetalhes()">×</button>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-      <span id="det-badge"></span>
-      <div style="text-align:right">
-        <div style="font-size:10px;color:var(--n500);text-transform:uppercase;letter-spacing:0.8px;font-weight:600">Comissão Total</div>
-        <div style="font-size:22px;font-weight:700;color:var(--od)" id="det-total"></div>
-      </div>
-    </div>
-    <div class="tw">
-      <table>
-        <thead id="det-thead"></thead>
-        <tbody id="det-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
 <!-- INDICAÇÕES -->
 <div class="panel" id="tab-indicacoes">
   <div class="hr">
@@ -694,11 +666,34 @@ body.viewer-mode .edit-only{display:none!important;}
         <tbody id="ind-tbody"></tbody>
       </table>
     </div>
-    <div id="ind-table-count" style="font-size:11px;color:var(--n300);margin-top:8px;text-align:right"></div>
+  </div>
+</div><!-- /content -->
+
+<!-- MODAL DETALHE APURAÇÃO -->
+<div class="mo-det" id="modal-det" onclick="if(event.target===this)fecharDetalhes()">
+  <div class="modal-det">
+    <div class="mh">
+      <div>
+        <div class="mt" id="det-title"></div>
+        <div style="font-size:11px;color:var(--n500);margin-top:3px" id="det-sub"></div>
+      </div>
+      <button class="xb" onclick="fecharDetalhes()">×</button>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <span id="det-badge"></span>
+      <div style="text-align:right">
+        <div style="font-size:10px;color:var(--n500);text-transform:uppercase;letter-spacing:0.8px;font-weight:600">Comissão Total</div>
+        <div style="font-size:22px;font-weight:700;color:var(--od)" id="det-total"></div>
+      </div>
+    </div>
+    <div class="tw">
+      <table>
+        <thead id="det-thead"></thead>
+        <tbody id="det-tbody"></tbody>
+      </table>
+    </div>
   </div>
 </div>
-
-<!-- MODAL EDIÇÃO EM MASSA -->
 <div id="modal-massa" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:flex-start;justify-content:center;padding:40px 16px" onclick="if(event.target===this)closeMassaModal()">
   <div style="background:#fff;border-radius:12px;padding:24px;width:100%;max-width:480px;border-top:4px solid var(--orange)" onclick="event.stopPropagation()">
     <div class="mh">
