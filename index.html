@@ -855,7 +855,7 @@ function matchPol(raw){
 
 let eid=null,dadosApuracao=null;
 // Ordenação das tabelas de comissão
-const sortState={b:{col:'nome',dir:1},bt:{col:null,dir:1}};
+const sortState={b:{col:'nome',dir:1},bt:{col:'nome',dir:1}};
 
 function brl(v){if(!v||v===0)return'—';return'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function sm(a){return a.reduce((s,v)=>s+(Number(v)||0),0);}
