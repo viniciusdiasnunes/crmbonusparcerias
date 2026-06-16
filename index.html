@@ -262,9 +262,8 @@ body.viewer-mode .edit-only{display:none!important;}
     </select>
     <select class="sel" id="ft-status" onchange="rC()">
       <option value="">Todos os status</option>
-      <option value="Assinado">Assinado</option>
-      <option value="Em negociação">Em negociação</option>
-      <option value="Contrato enviado">Contrato enviado</option>
+      <option value="Ativo">Ativo</option>
+      <option value="Inativo">Inativo</option>
     </select>
     <select class="sel" id="ft-sort-c" onchange="rC()">
       <option value="az" selected>Nome A → Z</option>
@@ -274,9 +273,8 @@ body.viewer-mode .edit-only{display:none!important;}
   </div>
   <div style="display:flex;gap:16px;margin-bottom:14px;align-items:center;flex-wrap:wrap">
     <span style="font-size:10px;font-weight:700;color:var(--n300);text-transform:uppercase;letter-spacing:0.8px">Status:</span>
-    <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--n500)"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;flex-shrink:0"></span>Assinado</span>
-    <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--n500)"><span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;flex-shrink:0"></span>Em negociação</span>
-    <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--n500)"><span style="width:8px;height:8px;border-radius:50%;background:#60a5fa;display:inline-block;flex-shrink:0"></span>Contrato enviado</span>
+    <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--n500)"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;flex-shrink:0"></span>Ativo — tem integração ou indicação ativa</span>
+    <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--n500)"><span style="width:8px;height:8px;border-radius:50%;background:#f87171;display:inline-block;flex-shrink:0"></span>Inativo — sem contratos ativos</span>
   </div>
   <div id="cards-c"></div>
 </div>
@@ -1626,15 +1624,26 @@ function avatarColor(nome){
   return{bg,fg};
 }
 
+// Retorna 'Ativo' se o parceiro tem contrato de integração (tech)
+// OU ao menos uma indicação com status 'Ativo' em IND.
+// Caso contrário retorna 'Inativo'.
+function computarStatusParceiro(p){
+  if(p.tech&&p.tech.val)return'Ativo';
+  const nomeP=(p.nome||'').toLowerCase();
+  const temIndAtiva=IND.some(i=>(i.parceiro||'').toLowerCase()===nomeP&&i.status==='Ativo');
+  return temIndAtiva?'Ativo':'Inativo';
+}
+
 function rC(){
   const q=(document.getElementById('src-c').value||'').toLowerCase();
   const ft=document.getElementById('ft-tipo').value;
   const fs=document.getElementById('ft-status').value;
   const f=P.filter(p=>{
     const tipo=getTipo(p);
+    const statusComp=computarStatusParceiro(p);
     return(!q||(p.nome+p.cnpj+p.email+p.cont).toLowerCase().includes(q))&&
       (!ft||(ft==='Ambos'?tipo==='Ambos':tipo===ft||tipo==='Ambos'))&&
-      (!fs||p.status===fs);
+      (!fs||statusComp===fs);
   });
   const sort=document.getElementById('ft-sort-c').value;
   if(sort==='az')f.sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
@@ -1645,7 +1654,8 @@ function rC(){
   cont.innerHTML=`<div style="border:1.5px solid var(--bdr);border-radius:var(--r);overflow:hidden">
     ${f.map((p,i)=>{
       const {bg,fg}=avatarColor(p.nome);
-      const statusDot=p.status==='Assinado'?'#22c55e':p.status==='Em negociação'?'#f59e0b':'#60a5fa';
+      const statusComp=computarStatusParceiro(p);
+      const statusDot=statusComp==='Ativo'?'#22c55e':'#f87171';
       const borderTop=i>0?'border-top:1px solid var(--n100);':'';
       return`<div class="pcard" onclick="openDrawer(${p.id})" tabindex="0" onkeydown="if(event.key==='Enter')openDrawer(${p.id})"
         style="border:none;border-radius:0;padding:12px 16px;${borderTop}display:grid;grid-template-columns:2fr 1.2fr 1.2fr auto;align-items:center;gap:12px;margin-bottom:0">
@@ -1664,7 +1674,7 @@ function rC(){
           :`<div style="font-size:10px;color:var(--n300)">—</div>`}
         </div>
         <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
-          <div style="width:8px;height:8px;border-radius:50%;background:${statusDot};flex-shrink:0" title="${p.status}"></div>
+          <div style="width:8px;height:8px;border-radius:50%;background:${statusDot};flex-shrink:0" title="${statusComp}"></div>
           <span style="font-size:10px;color:var(--n300)">Ver →</span>
         </div>
       </div>`;
@@ -1672,7 +1682,7 @@ function rC(){
   </div>`;
 
   const tot=P.length,tech=P.filter(p=>p.tech).length,biz=P.filter(p=>p.biz).length,
-    amb=P.filter(p=>p.tech&&p.biz).length,ativ=P.filter(p=>p.status==='Assinado').length;
+    amb=P.filter(p=>p.tech&&p.biz).length,ativ=P.filter(p=>computarStatusParceiro(p)==='Ativo').length;
   document.getElementById('stats-c').innerHTML=`
     <div class="sc"><div class="sl">Total</div><div class="sv ac">${tot}</div></div>
     <div class="sc"><div class="sl">Têm Integrações</div><div class="sv">${tech}</div></div>
@@ -1684,8 +1694,9 @@ function rC(){
 function openDrawer(id){
   const p=P.find(x=>x.id===id);if(!p)return;
   const {bg,fg}=avatarColor(p.nome);
-  const statusColor=p.status==='Assinado'?'#D4EDDA':p.status==='Em negociação'?'#FFF3CD':'#E8F4FD';
-  const statusTextColor=p.status==='Assinado'?'#1A6B35':p.status==='Em negociação'?'#856404':'#1565C0';
+  const statusComp=computarStatusParceiro(p);
+  const statusColor=statusComp==='Ativo'?'#D4EDDA':'#FCE8E8';
+  const statusTextColor=statusComp==='Ativo'?'#1A6B35':'#922222';
 
   const infoRow=(label,val,isLink=false)=>{
     if(!val)return'';
@@ -1736,7 +1747,7 @@ function openDrawer(id){
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           ${p.tech?`<span class="badge b-tech">Integrações</span>`:''}
           ${p.biz?`<span class="badge b-biz">Indicações</span>`:''}
-          <span style="background:${statusColor};color:${statusTextColor};padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700">${p.status}</span>
+          <span style="background:${statusColor};color:${statusTextColor};padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700">${statusComp}</span>
         </div>
       </div>
 
