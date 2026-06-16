@@ -176,9 +176,9 @@ th[onclick]{transition:background .15s;}
   </div>
   <div class="tabs">
     <button class="tab active" onclick="sw('cadastro')">Parceiros</button>
+    <button class="tab" onclick="sw('indicacoes')">Controle de Indicações</button>
     <button class="tab" onclick="sw('business')">Comissão de Indicação</button>
     <button class="tab" onclick="sw('bonus')">Comissão de Integração</button>
-    <button class="tab" onclick="sw('indicacoes')">Controle de Indicações</button>
   </div>
 </div>
 <div class="content">
@@ -872,7 +872,7 @@ function getTipo(p){
 }
 
 function sw(t){
-  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['cadastro','business','bonus','indicacoes'][i]===t));
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['cadastro','indicacoes','business','bonus'][i]===t));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
   if(t==='cadastro')rC();if(t==='business')rB();if(t==='indicacoes')rInd();
