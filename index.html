@@ -1067,6 +1067,8 @@ async function deletarSupabase(sbId){
     if(error)throw error;
     showSync('✓ Removido do banco');
     registrarLog(window.CURRENT_EMAIL,'delete','Parceiro removido (id: '+sbId+')');
+  }catch(e){
+    console.warn('Supabase deletar:',e.message);
     showSync('⚠ Remoção local apenas',false);
   }
 }
