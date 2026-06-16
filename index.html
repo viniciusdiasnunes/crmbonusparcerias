@@ -359,6 +359,7 @@ body.viewer-mode .edit-only{display:none!important;}
       </table>
     </div>
   </div>
+</div><!-- /tab-bonus -->
 
 
 <!-- LOGS DE ACESSO -->
@@ -1262,14 +1263,7 @@ function sw(t){
   const tabNames=['cadastro','indicacoes','business','bonus','logs'];
   document.querySelectorAll('.tab').forEach((el,i)=>{if(tabNames[i]===t)el.classList.add('active');});
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  const panelEl2=document.getElementById('tab-'+t);
-  panelEl2.classList.add('active');
-  if(t==='logs'){
-    console.log('panel tab-logs classes:', panelEl2.className);
-    console.log('panel display:', window.getComputedStyle(panelEl2).display);
-    console.log('panel offsetHeight:', panelEl2.offsetHeight);
-    console.log('panel innerHTML length:', panelEl2.innerHTML.length);
-  }
+  document.getElementById('tab-'+t).classList.add('active');
   if(t==='cadastro')rC();
   if(t==='business')rB();
   if(t==='indicacoes')rInd();
