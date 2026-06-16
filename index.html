@@ -862,11 +862,6 @@ function doLogout(){
   window.CURRENT_EMAIL=null;
 }
 
-// Verifica sessão salva ao carregar
-(function(){
-  const s=localStorage.getItem('hub_sess');
-  if(s){try{const d=JSON.parse(s);aplicarSessao(d.email,d.role);}catch(e){localStorage.removeItem('hub_sess');}}
-})();
 // ── FIM AUTH ─────────────────────────────────────────────────────
 
 // ── LOGS DE ACESSO ───────────────────────────────────────────────
@@ -953,7 +948,13 @@ function rLogs(){
   }
 
   const tb=document.getElementById('tb-logs');
-  if(!f.length){tb.innerHTML='<tr><td colspan="4"><div class="em">Nenhum registro encontrado</div></td></tr>';return;}
+  if(!f.length){
+    const semDados = data.length===0
+      ? '<div style="margin-top:8px;font-size:11px;color:var(--n500)">A tabela existe mas ainda não tem registros. Faça logout e login novamente para gerar o primeiro log.</div>'
+      : '';
+    tb.innerHTML='<tr><td colspan="4"><div class="em">Nenhum registro encontrado'+semDados+'</div></td></tr>';
+    return;
+  }
 
   const tipoMap={
     login: {label:'Login',cls:'lb-login',rowCls:'log-row-login'},
@@ -3340,6 +3341,9 @@ window.addEventListener('DOMContentLoaded', function(){
   document.getElementById('chk-nf').checked = localStorage.getItem('chk-nf')==='true';
   atualizarCorChk();
   rC();rB();rInd();rBonusTech();
+  // Restaura sessão salva — DOM garantidamente pronto aqui
+  const s=localStorage.getItem('hub_sess');
+  if(s){try{const d=JSON.parse(s);aplicarSessao(d.email,d.role);}catch(e){localStorage.removeItem('hub_sess');}}
 });
 </script>
 
