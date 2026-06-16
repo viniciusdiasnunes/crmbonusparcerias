@@ -170,6 +170,20 @@ th[onclick]{transition:background .15s;}
 .ubtn-sair:hover{color:var(--white);}
 /* oculta controles de edição para viewers */
 body.viewer-mode .edit-only{display:none!important;}
+/* ── LOGS ── */
+.log-row-login   {border-left:3px solid #22c55e;}
+.log-row-logout  {border-left:3px solid #A8A8A8;}
+.log-row-edit    {border-left:3px solid var(--orange);}
+.log-row-delete  {border-left:3px solid #f87171;}
+.log-row-upload  {border-left:3px solid #60a5fa;}
+.log-row-view    {border-left:3px solid var(--n100);}
+.log-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;}
+.lb-login  {background:#D4EDDA;color:#1A6B35;}
+.lb-logout {background:#F7F7F7;color:#5B5B5B;}
+.lb-edit   {background:#FFF3D6;color:#B37400;}
+.lb-delete {background:#FCE8E8;color:#922;}
+.lb-upload {background:#E8F4FD;color:#1565C0;}
+.lb-view   {background:#F7F7F7;color:#A8A8A8;}
 </style>
 
 <!-- TELA DE LOGIN -->
@@ -230,6 +244,7 @@ body.viewer-mode .edit-only{display:none!important;}
     <button class="tab" onclick="sw('indicacoes')">Controle de Indicações</button>
     <button class="tab" onclick="sw('business')">Comissão de Indicação</button>
     <button class="tab" onclick="sw('bonus')">Comissão de Integração</button>
+    <button class="tab" id="tab-btn-logs" style="display:none" onclick="sw('logs')">Logs de Acesso</button>
   </div>
 </div>
 <div class="content">
@@ -416,6 +431,61 @@ body.viewer-mode .edit-only{display:none!important;}
     </div>
   </div>
 </div>
+<!-- LOGS DE ACESSO -->
+<div class="panel" id="tab-logs">
+  <div class="hr">
+    <div>
+      <div class="pt">Logs de Acesso</div>
+      <div class="ps">Histórico de logins, ações e alterações realizadas no Hub.</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-g" onclick="exportLogs()" style="font-size:11px">↓ Exportar CSV</button>
+      <button class="btn btn-g" onclick="limparFiltrosLogs()" style="font-size:11px">✕ Limpar filtros</button>
+    </div>
+  </div>
+  <div class="sg" id="stats-logs"></div>
+  <div class="toolbar" style="flex-wrap:wrap;gap:8px;margin-bottom:16px">
+    <input class="sb" id="src-logs" placeholder="Buscar usuário, ação, detalhe..." oninput="rLogs()" style="max-width:280px">
+    <select class="sel" id="ft-logs-user" onchange="rLogs()">
+      <option value="">Todos os usuários</option>
+      <option value="aline.rodrigues">Aline</option>
+      <option value="marcelo.quaresma">Marcelo Quaresma</option>
+      <option value="marcelo.massaki">Marcelo Massaki</option>
+      <option value="caroline.queiroz">Caroline</option>
+      <option value="lucas.sousa">Lucas Sousa</option>
+      <option value="lucas.nery">Lucas Nery</option>
+      <option value="vinicius.nunes">Vinicius</option>
+    </select>
+    <select class="sel" id="ft-logs-tipo" onchange="rLogs()">
+      <option value="">Todos os tipos</option>
+      <option value="login">Login</option>
+      <option value="logout">Logout</option>
+      <option value="edit">Edição</option>
+      <option value="delete">Exclusão</option>
+      <option value="upload">Upload</option>
+      <option value="view">Visualização</option>
+    </select>
+    <input class="sel" type="date" id="ft-logs-de" onchange="rLogs()" title="De">
+    <input class="sel" type="date" id="ft-logs-ate" onchange="rLogs()" title="Até">
+  </div>
+  <div id="logs-count" style="font-size:11px;color:var(--n500);margin-bottom:10px"></div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th style="text-align:left;min-width:140px">Data/Hora</th>
+          <th style="text-align:left;min-width:130px">Usuário</th>
+          <th style="text-align:left;min-width:90px">Tipo</th>
+          <th style="text-align:left">Ação / Detalhe</th>
+        </tr>
+      </thead>
+      <tbody id="tb-logs">
+        <tr><td colspan="4"><div class="em">Carregando logs...</div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
 </div><!-- /content -->
 
 <!-- MODAL DETALHE APURAÇÃO -->
@@ -750,11 +820,13 @@ async function doLogin(){
   if(!u||u.h!==hash){errEl.textContent='E-mail ou senha incorretos.';document.getElementById('l-pass').value='';return;}
   sessionStorage.setItem('hub_sess',JSON.stringify({email,role:u.role}));
   aplicarSessao(email,u.role);
+  registrarLog(email,'login','Login realizado');
 }
 
 function aplicarSessao(email,role){
   document.getElementById('login-screen').classList.add('hidden');
   window.ROLE=role;
+  window.CURRENT_EMAIL=email;
   if(role!=='admin')document.body.classList.add('viewer-mode');
   else document.body.classList.remove('viewer-mode');
   const nome=email.split('.')[0];
@@ -763,6 +835,9 @@ function aplicarSessao(email,role){
   rEl.textContent=role==='admin'?'Admin':'Viewer';
   rEl.className='urole '+role;
   document.getElementById('ubadge').style.display='flex';
+  // Aba de logs só para admin
+  const tabLogs=document.getElementById('tab-btn-logs');
+  if(tabLogs)tabLogs.style.display=role==='admin'?'':'none';
   // carrega dados após login
   carregarParceirosSupabase().then(function(){buildTechMap();buildPolBiz();});
   migrarHistoricoSupabase();
@@ -773,14 +848,18 @@ function aplicarSessao(email,role){
 }
 
 function doLogout(){
+  if(window.CURRENT_EMAIL)registrarLog(window.CURRENT_EMAIL,'logout','Logout realizado');
   sessionStorage.removeItem('hub_sess');
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('l-email').value='';
   document.getElementById('l-pass').value='';
   document.getElementById('l-err').textContent='';
   document.getElementById('ubadge').style.display='none';
+  const tabLogs=document.getElementById('tab-btn-logs');
+  if(tabLogs)tabLogs.style.display='none';
   document.body.classList.remove('viewer-mode');
   window.ROLE=null;
+  window.CURRENT_EMAIL=null;
 }
 
 // Verifica sessão salva ao carregar
@@ -789,6 +868,116 @@ function doLogout(){
   if(s){try{const d=JSON.parse(s);aplicarSessao(d.email,d.role);}catch(e){sessionStorage.removeItem('hub_sess');}}
 })();
 // ── FIM AUTH ─────────────────────────────────────────────────────
+
+// ── LOGS DE ACESSO ───────────────────────────────────────────────
+// registrarLog: fire-and-forget, nunca bloqueia o fluxo principal
+function registrarLog(email, tipo, detalhe){
+  if(!email)return;
+  try{
+    sb.from('logs_acesso').insert({
+      email:email,
+      tipo:tipo,
+      detalhe:String(detalhe||'').slice(0,500),
+      user_agent:navigator.userAgent.slice(0,200),
+    }).then(function(){});
+  }catch(e){}
+}
+
+async function carregarLogs(){
+  const tb=document.getElementById('tb-logs');
+  if(!tb)return;
+  tb.innerHTML='<tr><td colspan="4"><div class="em">Carregando...</div></td></tr>';
+  try{
+    const{data,error}=await sb.from('logs_acesso').select('*').order('created_at',{ascending:false}).limit(500);
+    if(error)throw error;
+    window.LOGS_DATA=data||[];
+    rLogs();
+  }catch(e){
+    tb.innerHTML='<tr><td colspan="4"><div class="em">Erro ao carregar logs: '+e.message+'</div></td></tr>';
+  }
+}
+
+function rLogs(){
+  const data=window.LOGS_DATA||[];
+  const busca=(document.getElementById('src-logs')?.value||'').toLowerCase().trim();
+  const user=document.getElementById('ft-logs-user')?.value||'';
+  const tipo=document.getElementById('ft-logs-tipo')?.value||'';
+  const de=document.getElementById('ft-logs-de')?.value||'';
+  const ate=document.getElementById('ft-logs-ate')?.value||'';
+
+  let f=data.filter(function(r){
+    if(busca&&!(r.email+r.tipo+r.detalhe).toLowerCase().includes(busca))return false;
+    if(user&&!r.email.includes(user))return false;
+    if(tipo&&r.tipo!==tipo)return false;
+    if(de&&r.created_at.slice(0,10)<de)return false;
+    if(ate&&r.created_at.slice(0,10)>ate)return false;
+    return true;
+  });
+
+  // stats
+  const countEl=document.getElementById('logs-count');
+  if(countEl)countEl.textContent=f.length+' registro'+(f.length===1?'':'s')+' encontrado'+(f.length===1?'':'s');
+
+  // stats cards
+  const statsEl=document.getElementById('stats-logs');
+  if(statsEl){
+    const total=data.length;
+    const logins=data.filter(r=>r.tipo==='login').length;
+    const edits=data.filter(r=>r.tipo==='edit').length;
+    const uploads=data.filter(r=>r.tipo==='upload').length;
+    const usuarios=new Set(data.map(r=>r.email)).size;
+    statsEl.innerHTML=`
+      <div class="sc"><div class="sl">Total de eventos</div><div class="sv">${total}</div></div>
+      <div class="sc"><div class="sl">Logins</div><div class="sv">${logins}</div></div>
+      <div class="sc"><div class="sl">Edições</div><div class="sv ac">${edits}</div></div>
+      <div class="sc"><div class="sl">Uploads</div><div class="sv">${uploads}</div></div>
+      <div class="sc"><div class="sl">Usuários distintos</div><div class="sv">${usuarios}</div></div>`;
+  }
+
+  const tb=document.getElementById('tb-logs');
+  if(!f.length){tb.innerHTML='<tr><td colspan="4"><div class="em">Nenhum registro encontrado</div></td></tr>';return;}
+
+  const tipoMap={
+    login: {label:'Login',cls:'lb-login',rowCls:'log-row-login'},
+    logout:{label:'Logout',cls:'lb-logout',rowCls:'log-row-logout'},
+    edit:  {label:'Edição',cls:'lb-edit',rowCls:'log-row-edit'},
+    delete:{label:'Exclusão',cls:'lb-delete',rowCls:'log-row-delete'},
+    upload:{label:'Upload',cls:'lb-upload',rowCls:'log-row-upload'},
+    view:  {label:'Visualização',cls:'lb-view',rowCls:'log-row-view'},
+  };
+
+  tb.innerHTML=f.map(function(r){
+    const tm=tipoMap[r.tipo]||{label:r.tipo,cls:'lb-view',rowCls:''};
+    const dt=new Date(r.created_at);
+    const dtStr=dt.toLocaleDateString('pt-BR')+' '+dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const nome=r.email.split('@')[0].replace('.',' ').replace(/\b\w/g,c=>c.toUpperCase());
+    return`<tr class="${tm.rowCls}">
+      <td style="font-size:11px;color:var(--n500);white-space:nowrap">${dtStr}</td>
+      <td><div style="font-size:12px;font-weight:600;color:var(--n900)">${nome}</div><div style="font-size:10px;color:var(--n300)">${r.email}</div></td>
+      <td><span class="log-badge ${tm.cls}">${tm.label}</span></td>
+      <td style="font-size:12px;color:var(--n700)">${escHtml(r.detalhe||'')}</td>
+    </tr>`;
+  }).join('');
+}
+
+function limparFiltrosLogs(){
+  ['src-logs','ft-logs-user','ft-logs-tipo','ft-logs-de','ft-logs-ate'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.value='';
+  });
+  rLogs();
+}
+
+function exportLogs(){
+  const data=window.LOGS_DATA||[];
+  if(!data.length){alert('Nenhum log para exportar.');return;}
+  const h=['Data/Hora','E-mail','Tipo','Detalhe','User Agent'];
+  const rows=data.map(r=>[r.created_at,r.email,r.tipo,r.detalhe||'',r.user_agent||'']);
+  const csv=[h,...rows].map(r=>r.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download='logs_acesso_hub.csv';a.click();
+}
+// ── FIM LOGS ─────────────────────────────────────────────────────
 
 // Indicador de sincronização
 function showSync(msg, ok=true){
@@ -861,6 +1050,7 @@ async function salvarSupabase(d){
     }
     if(res.error)throw res.error;
     showSync('✓ Salvo no banco');
+    registrarLog(window.CURRENT_EMAIL,'edit','Parceiro salvo: '+(payload.nome||''));
     return res.data;
   }catch(e){
     console.error('Supabase salvar:',e.message);
@@ -876,8 +1066,7 @@ async function deletarSupabase(sbId){
     const {error}=await sb.from('parceiros').delete().eq('id',sbId);
     if(error)throw error;
     showSync('✓ Removido do banco');
-  }catch(e){
-    console.warn('Supabase deletar:',e.message);
+    registrarLog(window.CURRENT_EMAIL,'delete','Parceiro removido (id: '+sbId+')');
     showSync('⚠ Remoção local apenas',false);
   }
 }
@@ -1046,10 +1235,19 @@ function getTipo(p){
 }
 
 function sw(t){
-  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['cadastro','indicacoes','business','bonus'][i]===t));
+  document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
+  const tabNames=['cadastro','indicacoes','business','bonus','logs'];
+  document.querySelectorAll('.tab').forEach((el,i)=>{if(tabNames[i]===t)el.classList.add('active');});
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
-  if(t==='cadastro')rC();if(t==='business')rB();if(t==='indicacoes')rInd();
+  if(t==='cadastro')rC();
+  if(t==='business')rB();
+  if(t==='indicacoes')rInd();
+  if(t==='logs'){carregarLogs();}
+  if(window.CURRENT_EMAIL&&t!=='logs'){
+    const nomes={cadastro:'Parceiros',indicacoes:'Controle de Indicações',business:'Comissão de Indicação',bonus:'Comissão de Integração'};
+    registrarLog(window.CURRENT_EMAIL,'view','Acessou aba: '+(nomes[t]||t));
+  }
 }
 
 function tipoBadges(p){
@@ -1639,7 +1837,7 @@ async function regTodos(){
   rHistFiltro();
 
   // Salva tudo no Supabase em paralelo
-  Promise.all(saves).then(()=>showSync('✓ Comissões salvas no banco'));
+  Promise.all(saves).then(()=>{showSync('✓ Comissões salvas no banco');registrarLog(window.CURRENT_EMAIL,'upload','Comissões registradas: '+Object.keys(grupos).length+' parceiros — '+mes);});
 }
 
 function atualizarSelectsMes(){
@@ -2265,6 +2463,7 @@ async function salvarInd(){
       IND.push({id:data.id,_sbId:data.id,...d});
     }
     showSync('✓ Indicação salva no banco');
+    registrarLog(window.CURRENT_EMAIL,'edit','Indicação salva: '+d.cliente+' → '+d.parceiro);
   }catch(e){
     if(!indEid)IND.push({id:Date.now(),...d});
     showSync('⚠ Erro ao salvar: '+(e.message||JSON.stringify(e)),false);
@@ -2277,7 +2476,8 @@ async function delInd(id){
   const item=IND.find(i=>i.id===id);
   IND=IND.filter(i=>i.id!==id);
   if(item?._sbId){
-    try{await sb.from('indicacoes').delete().eq('id',item._sbId);showSync('✓ Removido do banco');}
+    try{await sb.from('indicacoes').delete().eq('id',item._sbId);showSync('✓ Removido do banco');
+    registrarLog(window.CURRENT_EMAIL,'delete','Indicação removida: '+(item.cliente||'')+' → '+(item.parceiro||''));}
     catch(e){showSync('⚠ Remoção local apenas',false);}
   }
   rInd();
@@ -2812,6 +3012,7 @@ function registrarAdim(){
           await sb.from('comissoes_detalhe').insert(detalhes.slice(i,i+500));
         }
         showSync('✓ '+inserts.length+' registros + detalhes salvos no banco');
+        registrarLog(window.CURRENT_EMAIL,'upload','Upload adimplência: '+arq+' ('+inserts.length+' registros)');
       }
     }catch(e){showSync('⚠ Erro ao salvar: '+e.message,false);}
   })();
@@ -3324,6 +3525,7 @@ async function registrarTech(){
       await sb.from('comissoes_detalhe').insert(detalhes.slice(i,i+500));
     }
     showSync('✓ '+inserts.length+' registros tech salvos no banco');
+    registrarLog(window.CURRENT_EMAIL,'upload','Upload bônus tech: '+arq+' ('+inserts.length+' registros)');
   }catch(e){showSync('⚠ Erro ao salvar: '+e.message,false);}
   rBonusTech();
   closeTechUploadModal();
@@ -3460,6 +3662,7 @@ async function confirmarImportInd(){
       });
     }
     showSync('✓ '+linhas.length+' indicaç'+(linhas.length===1?'ão':'ões')+' importada'+(linhas.length===1?'':'s'));
+    registrarLog(window.CURRENT_EMAIL,'upload','Importação em massa: '+linhas.length+' indicações');
   }catch(e){
     showSync('⚠ Erro ao salvar: '+e.message,false);
   }
