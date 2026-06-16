@@ -246,18 +246,11 @@ th[onclick]{transition:background .15s;}
     <div><div class="pt">Relatório de Bônus</div><div class="ps">Upload com múltiplos parceiros — identificação automática e cálculo por política contratual</div></div>
     <button class="btn btn-p" onclick="openUploadModal()">↑ Novo Upload</button>
   </div>
-  <div class="si">
-    <div class="step active" id="step1"><div class="sn">1</div>Upload</div><div class="ssep"></div>
-    <div class="step" id="step2"><div class="sn">2</div>Identificação</div><div class="ssep"></div>
-    <div class="step" id="step3"><div class="sn">3</div>Cálculo</div><div class="ssep"></div>
-    <div class="step" id="step4"><div class="sn">4</div>Registro</div>
-  </div>
   <div id="pnl-res" style="display:none">
     <div class="rc" id="res-geral"></div>
     <div style="display:flex;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px">
       <div style="font-size:13px;font-weight:700;color:var(--n900)">Detalhamento por parceiro</div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-g" onclick="voltarUp()">← Novo upload</button>
         <button class="btn btn-g" onclick="document.querySelectorAll('.pg-body').forEach(b=>b.classList.remove('collapsed'));document.querySelectorAll('.pg-chevron').forEach(c=>c.classList.remove('collapsed'));document.querySelectorAll('.pg-total-preview').forEach(p=>p.classList.remove('show'))">⊞ Expandir todos</button>
         <button class="btn btn-g" onclick="document.querySelectorAll('.pg-body').forEach(b=>b.classList.add('collapsed'));document.querySelectorAll('.pg-chevron').forEach(c=>c.classList.add('collapsed'));document.querySelectorAll('.pg-total-preview').forEach(p=>p.classList.add('show'))">⊟ Recolher todos</button>
         <button class="btn btn-p" onclick="regTodos()">Registrar todas</button>
