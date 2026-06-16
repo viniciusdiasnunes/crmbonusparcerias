@@ -469,6 +469,7 @@ body.viewer-mode .edit-only{display:none!important;}
     <input class="sel" type="date" id="ft-logs-ate" onchange="rLogs()" title="Até">
   </div>
   <div id="logs-count" style="font-size:11px;color:var(--n500);margin-bottom:10px"></div>
+  <div id="logs-diag" style="display:none;margin-bottom:12px;padding:10px 14px;background:#FFF3CD;border-radius:8px;font-size:11px;color:#856404;font-family:monospace;word-break:break-all"></div>
   <div class="tw">
     <table>
       <thead>
@@ -883,30 +884,23 @@ async function carregarLogs(){
   if(!tb)return;
   tb.innerHTML='<tr><td colspan="4"><div class="em">Carregando...</div></td></tr>';
   try{
-    const{data,error}=await sb.from('logs_acesso').select('*').order('created_at',{ascending:false}).limit(500);
-    if(error)throw error;
-    window.LOGS_DATA=data||[];
+    const res=await sb.from('logs_acesso').select('*').order('created_at',{ascending:false}).limit(500);
+    // Diagnóstico visível — remove depois de confirmar funcionamento
+    const diagEl=document.getElementById('logs-diag');
+    if(diagEl){
+      diagEl.style.display='block';
+      diagEl.innerHTML='<strong>Diagnóstico:</strong> status='+JSON.stringify(res.status)+
+        ' | error='+JSON.stringify(res.error)+
+        ' | registros='+((res.data||[]).length)+
+        ' | statusText='+JSON.stringify(res.statusText);
+    }
+    if(res.error)throw res.error;
+    window.LOGS_DATA=res.data||[];
     rLogs();
   }catch(e){
-    tb.innerHTML=`<tr><td colspan="4"><div style="padding:32px 20px;text-align:center">
-      <div style="font-size:13px;font-weight:700;color:#922;margin-bottom:8px">Tabela não encontrada no Supabase</div>
-      <div style="font-size:12px;color:var(--n500);margin-bottom:16px">Execute o SQL abaixo no <strong>SQL Editor</strong> do seu projeto Supabase:</div>
-      <pre style="background:var(--n50);border:1.5px solid var(--bdr);border-radius:8px;padding:16px;font-size:11px;text-align:left;overflow-x:auto;max-width:600px;margin:0 auto;line-height:1.6">create table logs_acesso (
-  id bigint generated always as identity primary key,
-  created_at timestamptz default now() not null,
-  email text not null,
-  tipo text not null,
-  detalhe text,
-  user_agent text
-);
-create index on logs_acesso (email);
-create index on logs_acesso (tipo);
-create index on logs_acesso (created_at desc);
-alter table logs_acesso enable row level security;
-create policy "insert" on logs_acesso for insert with check (true);
-create policy "select" on logs_acesso for select using (true);</pre>
-      <div style="font-size:11px;color:var(--n300);margin-top:12px">Após criar a tabela, recarregue a página.</div>
-    </div></td></tr>`;
+    const diagEl=document.getElementById('logs-diag');
+    if(diagEl){diagEl.style.display='block';diagEl.innerHTML='<strong>Erro catch:</strong> '+JSON.stringify(e.message||e);}
+    tb.innerHTML='<tr><td colspan="4"><div style="padding:24px;text-align:center;color:#922;font-size:12px;font-weight:600">Erro: '+escHtml(e.message||JSON.stringify(e))+'</div></td></tr>';
   }
 }
 
