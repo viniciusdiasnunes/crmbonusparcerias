@@ -418,7 +418,6 @@ th[onclick]{transition:background .15s;}
       <button class="btn btn-p" onclick="openIndM()">+ Nova Indicação</button>
     </div>
   </div>
-  <div class="sg" id="stats-ind"></div>
   <div class="toolbar">
     <input class="sb" id="src-ind" placeholder="Buscar parceiro, cliente, CNPJ..." oninput="rInd()">
     <select class="sel" id="ft-ind-parc" onchange="rInd()">
@@ -1764,13 +1763,6 @@ function rInd(){
   const parceiros = [...new Set(IND.map(i=>i.parceiro))];
   const ativos = IND.filter(i=>i.status==='Ativo').length;
   const pendentes = IND.filter(i=>i.status==='Pendente').length;
-  document.getElementById('stats-ind').innerHTML=`
-    <div class="sc"><div class="sl">Total Indicações</div><div class="sv ac">${IND.length}</div></div>
-    <div class="sc"><div class="sl">Parceiros</div><div class="sv">${parceiros.length}</div></div>
-    <div class="sc"><div class="sl">Ativas</div><div class="sv ac">${ativos}</div></div>
-    <div class="sc"><div class="sl">Pendentes</div><div class="sv">${pendentes}</div></div>
-    <div class="sc"><div class="sl">Exibindo</div><div class="sv">${f.length}</div></div>`;
-
   // populate filter parceiro
   const sel = document.getElementById('ft-ind-parc');
   const cur = sel.value;
