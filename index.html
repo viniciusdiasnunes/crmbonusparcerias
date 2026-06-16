@@ -2652,13 +2652,66 @@ function exportTechDet(){
   var itens=window._techDetAtual.itens;
   var totalBonus=itens.reduce(function(s,i){return s+(i.qtd||0);},0);
   var totalCom=itens.reduce(function(s,i){return s+(i.comissao||0);},0);
-  var data=[['Loja','CNPJ','Qtd Bônus','Comissão (R$)']];
-  itens.forEach(function(i){data.push([i.loja,i.cnpj||'',i.qtd,Number(i.comissao.toFixed(2))]);});
-  data.push(['','','Total bônus: '+totalBonus,'Total: R$ '+totalCom.toLocaleString('pt-BR',{minimumFractionDigits:2})]);
-  var ws=XLSX.utils.aoa_to_sheet(data);
-  ws['!cols']=[{wch:40},{wch:22},{wch:14},{wch:16}];
+
+  // Monta dados: linha 1 = cabeçalho, linhas 2..N = lojas, última = totais
+  var aoa=[['Loja','CNPJ','Qtd Bônus','Comissão (R$)']];
+  itens.forEach(function(i){
+    aoa.push([i.loja, i.cnpj||'', i.qtd, Number(i.comissao.toFixed(2))]);
+  });
+  aoa.push(['', '', 'Total bônus: '+totalBonus.toLocaleString('pt-BR'), 'Valor Total: R$ '+totalCom.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})]);
+
+  var ws=XLSX.utils.aoa_to_sheet(aoa);
+
+  // Larguras das colunas (espelhando o modelo)
+  ws['!cols']=[{wch:50},{wch:32},{wch:21},{wch:22}];
+
+  // Altura da linha de cabeçalho
+  ws['!rows']=[{hpt:41}];
+
+  // Estilos via SheetJS — só funciona com xlsx-pro, mas SheetJS CE suporta !cols/!rows e
+  // o subset de cell styles abaixo quando o arquivo é lido de volta por Excel/Sheets
+  var orange='FFFD7A36'; // cor exata do modelo (#FD7A36)
+  var headerStyle={
+    font:{bold:true, color:{rgb:orange}, name:'Arial', sz:12},
+    alignment:{horizontal:'center', vertical:'center'}
+  };
+  var dataStyle={
+    font:{name:'Arial', sz:12},
+    alignment:{horizontal:'center', vertical:'center'}
+  };
+  var totalStyle={
+    font:{bold:true, name:'Arial', sz:12},
+    alignment:{horizontal:'center', vertical:'center'}
+  };
+
+  var numRows=aoa.length;
+  var numCols=4;
+  var colLetters=['A','B','C','D'];
+
+  // Aplica estilos célula a célula
+  for(var ci=0;ci<numCols;ci++){
+    var addr=colLetters[ci]+'1';
+    if(!ws[addr])ws[addr]={v:aoa[0][ci],t:'s'};
+    ws[addr].s=headerStyle;
+  }
+  for(var ri=1;ri<numRows-1;ri++){
+    for(var ci=0;ci<numCols;ci++){
+      var addr=colLetters[ci]+(ri+1);
+      if(!ws[addr])ws[addr]={v:aoa[ri][ci],t:typeof aoa[ri][ci]==='number'?'n':'s'};
+      ws[addr].s=dataStyle;
+    }
+  }
+  // Linha de totais
+  var lastRow=numRows;
+  for(var ci=0;ci<numCols;ci++){
+    var addr=colLetters[ci]+lastRow;
+    if(!ws[addr])ws[addr]={v:aoa[numRows-1][ci],t:'s'};
+    ws[addr].s=totalStyle;
+  }
+
   var wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,parceiro.slice(0,31));
+  var sheetName=parceiro.slice(0,31);
+  XLSX.utils.book_append_sheet(wb,ws,sheetName);
   XLSX.writeFile(wb,parceiro+'_'+MESES[mesIdx]+'.xlsx');
 }
 function exportAdimDet(){
