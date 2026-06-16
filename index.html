@@ -361,6 +361,61 @@ body.viewer-mode .edit-only{display:none!important;}
   </div>
 
 
+<!-- LOGS DE ACESSO -->
+<div class="panel" id="tab-logs">
+  <div class="hr">
+    <div>
+      <div class="pt">Logs de Acesso</div>
+      <div class="ps">Histórico de logins, ações e alterações realizadas no Hub.</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-g" onclick="exportLogs()" style="font-size:11px">↓ Exportar CSV</button>
+      <button class="btn btn-g" onclick="limparFiltrosLogs()" style="font-size:11px">✕ Limpar filtros</button>
+    </div>
+  </div>
+  <div class="sg" id="stats-logs"></div>
+  <div class="toolbar" style="flex-wrap:wrap;gap:8px;margin-bottom:16px">
+    <input class="sb" id="src-logs" placeholder="Buscar usuário, ação, detalhe..." oninput="rLogs()" style="max-width:280px">
+    <select class="sel" id="ft-logs-user" onchange="rLogs()">
+      <option value="">Todos os usuários</option>
+      <option value="aline.rodrigues">Aline</option>
+      <option value="marcelo.quaresma">Marcelo Quaresma</option>
+      <option value="marcelo.massaki">Marcelo Massaki</option>
+      <option value="caroline.queiroz">Caroline</option>
+      <option value="lucas.sousa">Lucas Sousa</option>
+      <option value="lucas.nery">Lucas Nery</option>
+      <option value="vinicius.nunes">Vinicius</option>
+    </select>
+    <select class="sel" id="ft-logs-tipo" onchange="rLogs()">
+      <option value="">Todos os tipos</option>
+      <option value="login">Login</option>
+      <option value="logout">Logout</option>
+      <option value="edit">Edição</option>
+      <option value="delete">Exclusão</option>
+      <option value="upload">Upload</option>
+      <option value="view">Visualização</option>
+    </select>
+    <input class="sel" type="date" id="ft-logs-de" onchange="rLogs()" title="De">
+    <input class="sel" type="date" id="ft-logs-ate" onchange="rLogs()" title="Até">
+  </div>
+  <div id="logs-count" style="font-size:11px;color:var(--n500);margin-bottom:10px"></div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th style="text-align:left;min-width:140px">Data/Hora</th>
+          <th style="text-align:left;min-width:130px">Usuário</th>
+          <th style="text-align:left;min-width:90px">Tipo</th>
+          <th style="text-align:left">Ação / Detalhe</th>
+        </tr>
+      </thead>
+      <tbody id="tb-logs">
+        <tr><td colspan="4"><div class="em">Carregando logs...</div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
 <!-- MODAL UPLOAD BÔNUS -->
 <div class="mo" id="modal-upload" onclick="if(event.target===this)closeUploadModal()">
   <div class="modal" onclick="event.stopPropagation()" style="max-width:660px">
@@ -431,60 +486,7 @@ body.viewer-mode .edit-only{display:none!important;}
     </div>
   </div>
 </div>
-<!-- LOGS DE ACESSO -->
-<div class="panel" id="tab-logs">
-  <div class="hr">
-    <div>
-      <div class="pt">Logs de Acesso</div>
-      <div class="ps">Histórico de logins, ações e alterações realizadas no Hub.</div>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <button class="btn btn-g" onclick="exportLogs()" style="font-size:11px">↓ Exportar CSV</button>
-      <button class="btn btn-g" onclick="limparFiltrosLogs()" style="font-size:11px">✕ Limpar filtros</button>
-    </div>
-  </div>
-  <div class="sg" id="stats-logs"></div>
-  <div class="toolbar" style="flex-wrap:wrap;gap:8px;margin-bottom:16px">
-    <input class="sb" id="src-logs" placeholder="Buscar usuário, ação, detalhe..." oninput="rLogs()" style="max-width:280px">
-    <select class="sel" id="ft-logs-user" onchange="rLogs()">
-      <option value="">Todos os usuários</option>
-      <option value="aline.rodrigues">Aline</option>
-      <option value="marcelo.quaresma">Marcelo Quaresma</option>
-      <option value="marcelo.massaki">Marcelo Massaki</option>
-      <option value="caroline.queiroz">Caroline</option>
-      <option value="lucas.sousa">Lucas Sousa</option>
-      <option value="lucas.nery">Lucas Nery</option>
-      <option value="vinicius.nunes">Vinicius</option>
-    </select>
-    <select class="sel" id="ft-logs-tipo" onchange="rLogs()">
-      <option value="">Todos os tipos</option>
-      <option value="login">Login</option>
-      <option value="logout">Logout</option>
-      <option value="edit">Edição</option>
-      <option value="delete">Exclusão</option>
-      <option value="upload">Upload</option>
-      <option value="view">Visualização</option>
-    </select>
-    <input class="sel" type="date" id="ft-logs-de" onchange="rLogs()" title="De">
-    <input class="sel" type="date" id="ft-logs-ate" onchange="rLogs()" title="Até">
-  </div>
-  <div id="logs-count" style="font-size:11px;color:var(--n500);margin-bottom:10px"></div>
-  <div class="tw">
-    <table>
-      <thead>
-        <tr>
-          <th style="text-align:left;min-width:140px">Data/Hora</th>
-          <th style="text-align:left;min-width:130px">Usuário</th>
-          <th style="text-align:left;min-width:90px">Tipo</th>
-          <th style="text-align:left">Ação / Detalhe</th>
-        </tr>
-      </thead>
-      <tbody id="tb-logs">
-        <tr><td colspan="4"><div class="em">Carregando logs...</div></td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
+
 
 </div><!-- /content -->
 
@@ -1260,9 +1262,7 @@ function sw(t){
   const tabNames=['cadastro','indicacoes','business','bonus','logs'];
   document.querySelectorAll('.tab').forEach((el,i)=>{if(tabNames[i]===t)el.classList.add('active');});
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  const panelEl=document.getElementById('tab-'+t);
-  if(!panelEl){alert('ERRO: panel tab-'+t+' não encontrado no DOM!');return;}
-  panelEl.classList.add('active');
+  document.getElementById('tab-'+t).classList.add('active');
   if(t==='cadastro')rC();
   if(t==='business')rB();
   if(t==='indicacoes')rInd();
