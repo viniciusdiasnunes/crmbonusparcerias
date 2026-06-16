@@ -818,7 +818,7 @@ async function doLogin(){
   const hash=await sha256(pass);
   const u=AUTH_USERS[email];
   if(!u||u.h!==hash){errEl.textContent='E-mail ou senha incorretos.';document.getElementById('l-pass').value='';return;}
-  sessionStorage.setItem('hub_sess',JSON.stringify({email,role:u.role}));
+  localStorage.setItem('hub_sess',JSON.stringify({email,role:u.role}));
   aplicarSessao(email,u.role);
   registrarLog(email,'login','Login realizado');
 }
@@ -849,7 +849,7 @@ function aplicarSessao(email,role){
 
 function doLogout(){
   if(window.CURRENT_EMAIL)registrarLog(window.CURRENT_EMAIL,'logout','Logout realizado');
-  sessionStorage.removeItem('hub_sess');
+  localStorage.removeItem('hub_sess');
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('l-email').value='';
   document.getElementById('l-pass').value='';
@@ -864,8 +864,8 @@ function doLogout(){
 
 // Verifica sessão salva ao carregar
 (function(){
-  const s=sessionStorage.getItem('hub_sess');
-  if(s){try{const d=JSON.parse(s);aplicarSessao(d.email,d.role);}catch(e){sessionStorage.removeItem('hub_sess');}}
+  const s=localStorage.getItem('hub_sess');
+  if(s){try{const d=JSON.parse(s);aplicarSessao(d.email,d.role);}catch(e){localStorage.removeItem('hub_sess');}}
 })();
 // ── FIM AUTH ─────────────────────────────────────────────────────
 
@@ -893,7 +893,25 @@ async function carregarLogs(){
     window.LOGS_DATA=data||[];
     rLogs();
   }catch(e){
-    tb.innerHTML='<tr><td colspan="4"><div class="em">Erro ao carregar logs: '+e.message+'</div></td></tr>';
+    tb.innerHTML=`<tr><td colspan="4"><div style="padding:32px 20px;text-align:center">
+      <div style="font-size:13px;font-weight:700;color:#922;margin-bottom:8px">Tabela não encontrada no Supabase</div>
+      <div style="font-size:12px;color:var(--n500);margin-bottom:16px">Execute o SQL abaixo no <strong>SQL Editor</strong> do seu projeto Supabase:</div>
+      <pre style="background:var(--n50);border:1.5px solid var(--bdr);border-radius:8px;padding:16px;font-size:11px;text-align:left;overflow-x:auto;max-width:600px;margin:0 auto;line-height:1.6">create table logs_acesso (
+  id bigint generated always as identity primary key,
+  created_at timestamptz default now() not null,
+  email text not null,
+  tipo text not null,
+  detalhe text,
+  user_agent text
+);
+create index on logs_acesso (email);
+create index on logs_acesso (tipo);
+create index on logs_acesso (created_at desc);
+alter table logs_acesso enable row level security;
+create policy "insert" on logs_acesso for insert with check (true);
+create policy "select" on logs_acesso for select using (true);</pre>
+      <div style="font-size:11px;color:var(--n300);margin-top:12px">Após criar a tabela, recarregue a página.</div>
+    </div></td></tr>`;
   }
 }
 
