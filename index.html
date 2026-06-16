@@ -836,11 +836,24 @@ const POL={
   'zanthus'            :{nome:'ZANTHUS',             tech:{val:0.05},biz:null},
 };
 
-// matchPol — match EXATO na tabela de integrações (POL)
-// Parceiros Business são resolvidos pelo buildPolBiz() no momento do upload
+// matchPol — resolve integração para objeto {nome, tech, biz} consultando P dinamicamente
+// Prioridade: (1) TECH_POL_MAP/INTEG_ALIAS_MAP → parceiro em P; (2) fallback no POL estático
 function matchPol(raw){
   if(!raw)return null;
   const k=String(raw).toLowerCase().trim();
+  // Tenta resolver via mapa dinâmico (construído de P pelo buildTechMap)
+  const nomeParceiro=TECH_POL_MAP[k]||TECH_POL_MAP[INTEG_ALIAS_MAP[k]];
+  if(nomeParceiro){
+    const p=P.find(function(x){return x.nome===nomeParceiro;});
+    if(p){
+      return{
+        nome:p.nome,
+        tech:p.tech?{val:p.tech.val||0.05}:null,
+        biz:p.biz?{pct:(p.biz.pct||10)/100}:null
+      };
+    }
+  }
+  // Fallback: mapa estático POL (garante retrocompatibilidade se P ainda não carregou)
   if(POL[k])return POL[k];
   return null;
 }
@@ -1186,6 +1199,7 @@ function setStep(n){[1,2,3,4].forEach(i=>{const el=document.getElementById('step
 function hDrop(e){const f=e.dataTransfer.files[0];if(f)procFile(f);}
 function hFile(e){const f=e.target.files[0];if(f)procFile(f);}
 function procFile(file){
+  buildTechMap(); // garante que TECH_POL_MAP está atualizado com P antes de calcMulti
   document.getElementById('fn').textContent='Lendo: '+file.name+' …';
   const rd=new FileReader();
   rd.onload=e=>{
