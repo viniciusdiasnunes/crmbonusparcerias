@@ -843,27 +843,14 @@ const POL={
   'vip system'         :{nome:'VIP SYSTEM',          tech:{val:0.05},biz:null},
   'winsae/tecnodata'   :{nome:'WINSAE/TECNODATA',    tech:{val:0.05},biz:null},
   'zanthus'            :{nome:'ZANTHUS',             tech:{val:0.05},biz:null},
-  // ── Parceiros Business (indicação)
-  'retail manager'     :{nome:'Retail Manager',      tech:null,biz:{pct:0.2}},
-  'alexandre'          :{nome:'Retail Manager',      tech:null,biz:{pct:0.2}},
-  'bruno bueno'        :{nome:'Bruno Bueno',         tech:null,biz:{pct:0.1}},
-  'gbr'                :{nome:'GBR Digital',         tech:null,biz:{pct:0.05}},
-  'gbr digital'        :{nome:'GBR Digital',         tech:null,biz:{pct:0.05}},
-  'frank azulay'       :{nome:'Frank Azulay',        tech:null,biz:{pct:0.1}},
-  'dama'               :{nome:'Dama 33',             tech:null,biz:{pct:0.2}},
-  'dama 33'            :{nome:'Dama 33',             tech:null,biz:{pct:0.2}},
 };
 
-// matchPol — match EXATO primeiro (sem substring), depois fuzzy só para input manual
+// matchPol — match EXATO na tabela de integrações (POL)
+// Parceiros Business são resolvidos pelo buildPolBiz() no momento do upload
 function matchPol(raw){
   if(!raw)return null;
   const k=String(raw).toLowerCase().trim();
-  // 1. match exato
   if(POL[k])return POL[k];
-  // 2. fuzzy só para chaves de parceiros Business (não-integração)
-  const bizKeys=['retail manager','alexandre','bruno bueno','gbr','gbr digital',
-    'frank azulay','dama','dama 33','wizos','presence'];
-  for(const key of bizKeys){if(k.includes(key)||key.includes(k))return POL[key]||null;}
   return null;
 }
 
@@ -1651,22 +1638,19 @@ let IND = [];
 let indEid=null;
 
 // Mapa de razões sociais e CNPJs por parceiro
-const PARC_INFO={
-  'Alexandre Cintra':{razao:'RETAIL MANAGER INFORMATICA LTDA',cnpj:'12.432.137/0001-02'},
-  'Bruno Bueno':{razao:'BR Consultoria & Serviços',cnpj:'24.585.527/0001-93'},
-  'DAMA33':{razao:'DAMA 33 GESTAO DE MARCAS LTDA',cnpj:'26.033.722/0001-37'},
-  'GBR Digital':{razao:'GBR DIGITAL MARKETING CONSULTING',cnpj:'50.568.215/0001-81'},
-  'Frank Azulay':{razao:'FINDER NEGOCIOS B2B LTDA',cnpj:'41.862.979/0001-94'},
-  'Wizos':{razao:'Wizos Desenvolvimento e Comercio de Software LTDA',cnpj:'51.288.138/0001-79'},
-  'Michel - Blueman':{razao:'Musique Design e Participações ltda',cnpj:'14.419.866/0001-46'},
-  'Shop9':{razao:'Rc9 Comercio e Importacao Ltda',cnpj:'31.649.942/0001-29'},
-  'Merithu':{razao:'MERITHU CONSULTORIA EM GESTAO EMPRESARIAL LTDA',cnpj:'31.649.942/0001-29'},
-  'Clube Visionário':{razao:'Visionários Educação LTDA',cnpj:'60.909.167/0001-00'},
-  'Agência Toff':{razao:'Toff Business Performance LTDA',cnpj:'40.717.766/0001-06'},
-  'Ranner - Rogério':{razao:'ESPERAR RENOVAR CONTRATO',cnpj:''},
-  'Tecnogalli':{razao:'ESPERAR RENOVAR CONTRATO',cnpj:''},
-  'Pinout':{razao:'',cnpj:'31.649.942/0001-29'},
-};
+// PARC_INFO — construído dinamicamente a partir do array P (banco)
+// Retorna {razao, cnpj} para um nome de parceiro, ou null se não encontrado
+function getParcInfo(nome){
+  const p = P.find(x => x.nome === nome);
+  if(!p) return null;
+  return { razao: p.prod || '', cnpj: p.cnpj || '' };
+}
+// Lista dinâmica de parceiros para os dropdowns de indicações
+function getParcList(){
+  const doP = P.filter(p => p.biz).map(p => p.nome);
+  const doInd = IND.map(i => i.parceiro);
+  return [...new Set([...doP, ...doInd])].sort();
+}
 
 // ── MODO IND: 'agrupado' | 'tabular'
 let indModo = 'agrupado';
@@ -1944,7 +1928,7 @@ function openMassaModal(){
   document.getElementById('massa-val-wrap').style.display = 'none';
   // Popula dropdown de parceiros
   const selParc = document.getElementById('massa-val-parceiro');
-  const paircList = [...new Set([...Object.keys(PARC_INFO),...IND.map(i=>i.parceiro)])].sort();
+  const paircList = getParcList();
   selParc.innerHTML = paircList.map(p=>`<option value="${p}">${p}</option>`).join('');
   document.getElementById('modal-massa').style.display = 'flex';
 }
@@ -2001,8 +1985,8 @@ async function delMassa(){
 }
 
 function autoFillParceiro(){
-  const p=document.getElementById('mind-parc').value;
-  const info=PARC_INFO[p];
+  const nome=document.getElementById('mind-parc').value;
+  const info=getParcInfo(nome);
   if(info){
     document.getElementById('mind-razao').value=info.razao;
     document.getElementById('mind-cnpj-parc').value=info.cnpj;
@@ -2019,9 +2003,8 @@ function openIndM(){
   document.getElementById('mind-parc').value='';
   document.getElementById('mind-status').value='Ativo';
   document.getElementById('mind-data').value=new Date().toISOString().split('T')[0];
-  // populate parceiros
   const sel=document.getElementById('mind-parc');
-  const paircList=[...new Set([...Object.keys(PARC_INFO),...IND.map(i=>i.parceiro)])].sort();
+  const paircList=getParcList();
   sel.innerHTML='<option value="">Selecione o parceiro...</option>'+paircList.map(p=>`<option value="${p}">${p}</option>`).join('');
   document.getElementById('modal-ind').classList.add('open');
 }
@@ -2030,7 +2013,7 @@ function editInd(id){
   indEid=id;
   const i=IND.find(x=>x.id===id);if(!i)return;
   document.getElementById('mind-title').textContent='Editar Indicação';
-  const paircList=[...new Set([...Object.keys(PARC_INFO),...IND.map(i=>i.parceiro)])].sort();
+  const paircList=getParcList();
   const sel=document.getElementById('mind-parc');
   sel.innerHTML='<option value="">Selecione o parceiro...</option>'+paircList.map(p=>`<option value="${p}"${p===i.parceiro?' selected':''}>${p}</option>`).join('');
   document.getElementById('mind-razao').value=i.razao||'';
