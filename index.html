@@ -406,13 +406,24 @@ th[onclick]{transition:background .15s;}
 <div class="panel" id="tab-indicacoes">
   <div class="hr">
     <div>
-      <div class="pt">Controle de Indicações</div>
-      <div class="ps">Clientes agrupados por parceiro — clique no grupo para expandir ou retrair</div>
+      <div class="pt" id="ind-titulo">Controle de Indicações</div>
+      <div class="ps" id="ind-subtitulo">Clientes agrupados por parceiro — clique no grupo para expandir ou retrair</div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <button class="btn btn-g" onclick="collapseAllGroups()">⊟ Recolher todos</button>
-      <button class="btn btn-g" onclick="expandAllGroups()">⊞ Expandir todos</button>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <!-- Botões modo agrupado -->
+      <div id="btns-agrupado" style="display:flex;gap:8px">
+        <button class="btn btn-g" onclick="collapseAllGroups()">⊟ Recolher todos</button>
+        <button class="btn btn-g" onclick="expandAllGroups()">⊞ Expandir todos</button>
+      </div>
+      <!-- Botões modo tabular -->
+      <div id="btns-tabular" style="display:none;gap:8px">
+        <button class="btn btn-g" id="btn-sel-all" onclick="toggleSelAll()">☐ Selecionar todos</button>
+        <button class="btn btn-g" id="btn-massa" onclick="openMassaModal()" style="display:none">✎ Editar selecionados</button>
+        <button class="btn btn-g" id="btn-del-massa" onclick="delMassa()" style="display:none;border-color:#FCE8E8;color:#922">✕ Excluir selecionados</button>
+      </div>
+      <!-- Comuns -->
       <button class="btn btn-g" onclick="exportInd()">↓ Exportar</button>
+      <button class="btn btn-g" id="btn-modo-toggle" onclick="toggleModoInd()" title="Alternar modo de visualização">⇄ Modo Edição</button>
       <button class="btn btn-p" onclick="openIndM()">+ Nova Indicação</button>
     </div>
   </div>
@@ -428,8 +439,75 @@ th[onclick]{transition:background .15s;}
       <option value="Inativo">Inativo</option>
       <option value="Pendente">Pendente</option>
     </select>
+    <!-- Filtros extras visíveis só no modo tabular -->
+    <select class="sel" id="ft-ind-sort" onchange="rInd()" style="display:none">
+      <option value="">Ordenar por...</option>
+      <option value="parceiro">Parceiro A→Z</option>
+      <option value="cliente">Cliente A→Z</option>
+      <option value="data">Data (recente)</option>
+      <option value="status">Status</option>
+    </select>
   </div>
+  <!-- Modo agrupado -->
   <div id="ind-groups-cont"></div>
+  <!-- Modo tabular -->
+  <div id="ind-table-cont" style="display:none">
+    <div id="ind-sel-info" style="display:none;margin-bottom:10px;padding:8px 14px;background:var(--ol);border-radius:var(--r);font-size:12px;font-weight:700;color:var(--od)"></div>
+    <div class="tw">
+      <table id="ind-table">
+        <thead>
+          <tr>
+            <th style="width:36px"><input type="checkbox" id="chk-all-ind" onclick="toggleSelAll()" style="width:14px;height:14px;accent-color:var(--orange);cursor:pointer"></th>
+            <th style="cursor:pointer;user-select:none" onclick="setSortInd('parceiro')">Parceiro <span id="si-parceiro" style="opacity:.4;font-size:9px">⇅</span></th>
+            <th style="cursor:pointer;user-select:none" onclick="setSortInd('cliente')">Cliente <span id="si-cliente" style="opacity:.4;font-size:9px">⇅</span></th>
+            <th>CNPJ Cliente</th>
+            <th style="cursor:pointer;user-select:none" onclick="setSortInd('data')">Data <span id="si-data" style="opacity:.4;font-size:9px">⇅</span></th>
+            <th style="cursor:pointer;user-select:none" onclick="setSortInd('status')">Status <span id="si-status" style="opacity:.4;font-size:9px">⇅</span></th>
+            <th>Observações</th>
+            <th style="width:60px">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="ind-tbody"></tbody>
+      </table>
+    </div>
+    <div id="ind-table-count" style="font-size:11px;color:var(--n300);margin-top:8px;text-align:right"></div>
+  </div>
+</div>
+
+<!-- MODAL EDIÇÃO EM MASSA -->
+<div id="modal-massa" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:flex-start;justify-content:center;padding:40px 16px" onclick="if(event.target===this)closeMassaModal()">
+  <div style="background:#fff;border-radius:12px;padding:24px;width:100%;max-width:480px;border-top:4px solid var(--orange)" onclick="event.stopPropagation()">
+    <div class="mh">
+      <div class="mt">Editar em massa</div>
+      <button class="xb" onclick="closeMassaModal()">×</button>
+    </div>
+    <div id="massa-count" style="font-size:12px;color:var(--n500);margin-bottom:16px"></div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="fgrp">
+        <label class="fl">Campo a alterar</label>
+        <select class="fi" id="massa-campo" onchange="toggleMassaCampo()" style="padding:9px 12px">
+          <option value="">— Selecione o campo —</option>
+          <option value="parceiro">Parceiro</option>
+          <option value="status">Status</option>
+          <option value="obs">Observações</option>
+        </select>
+      </div>
+      <div class="fgrp" id="massa-val-wrap" style="display:none">
+        <label class="fl" id="massa-val-label">Novo valor</label>
+        <select class="fi" id="massa-val-status" style="display:none;padding:9px 12px">
+          <option value="Ativo">Ativo</option>
+          <option value="Pendente">Pendente</option>
+          <option value="Inativo">Inativo</option>
+        </select>
+        <select class="fi" id="massa-val-parceiro" style="display:none;padding:9px 12px"></select>
+        <input class="fi" id="massa-val-texto" style="display:none" placeholder="Novo valor...">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+      <button class="btn btn-g" onclick="closeMassaModal()">Cancelar</button>
+      <button class="btn btn-p" onclick="aplicarMassa()">Aplicar</button>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL INDICAÇÕES -->
@@ -1590,13 +1668,13 @@ const PARC_INFO={
   'Pinout':{razao:'',cnpj:'31.649.942/0001-29'},
 };
 
-function sIndBadge(s){
-  if(s==='Ativo')return`<span class="badge b-signed">Ativo</span>`;
-  if(s==='Inativo')return`<span class="badge b-neg">Inativo</span>`;
-  return`<span class="badge b-pending">Pendente</span>`;
-}
+// ── MODO IND: 'agrupado' | 'tabular'
+let indModo = 'agrupado';
+let indSel = new Set(); // ids selecionados no modo tabular
+let indSortCol = null;
+let indSortDir = 1;
 
-// Track open groups across renders
+// Track open groups across renders (modo agrupado)
 const indOpenGroups = new Set();
 
 function toggleIndGroup(parceiro){
@@ -1621,19 +1699,96 @@ function collapseAllGroups(){
   indOpenGroups.clear();
 }
 
-function rInd(){
-  const q=(document.getElementById('src-ind').value||'').toLowerCase();
-  const fp=document.getElementById('ft-ind-parc').value;
-  const fs=document.getElementById('ft-ind-status').value;
-  const f=IND.filter(i=>{
-    return(!q||(i.parceiro+i.cliente+i.cnpjCli+i.cnpjParc).toLowerCase().includes(q))&&
-      (!fp||i.parceiro===fp)&&(!fs||i.status===fs);
+function toggleModoInd(){
+  indModo = indModo === 'agrupado' ? 'tabular' : 'agrupado';
+  const isTab = indModo === 'tabular';
+  document.getElementById('ind-groups-cont').style.display = isTab ? 'none' : 'block';
+  document.getElementById('ind-table-cont').style.display = isTab ? 'block' : 'none';
+  document.getElementById('btns-agrupado').style.display = isTab ? 'none' : 'flex';
+  document.getElementById('btns-tabular').style.display = isTab ? 'flex' : 'none';
+  document.getElementById('ft-ind-sort').style.display = isTab ? '' : 'none';
+  document.getElementById('btn-modo-toggle').textContent = isTab ? '⇄ Modo Agrupado' : '⇄ Modo Edição';
+  document.getElementById('ind-titulo').textContent = isTab ? 'Controle de Indicações — Edição Tabular' : 'Controle de Indicações';
+  document.getElementById('ind-subtitulo').textContent = isTab ? 'Edição direta nas células · Seleção em massa · Filtros combinados' : 'Clientes agrupados por parceiro — clique no grupo para expandir ou retrair';
+  indSel.clear();
+  atualizarBtnsMassa();
+  rInd();
+}
+
+function setSortInd(col){
+  if(indSortCol === col) indSortDir *= -1;
+  else { indSortCol = col; indSortDir = 1; }
+  // Atualiza ícones
+  ['parceiro','cliente','data','status'].forEach(c=>{
+    const el = document.getElementById('si-'+c);
+    if(!el) return;
+    if(c === indSortCol) el.textContent = indSortDir === 1 ? '▲' : '▼';
+    else { el.textContent = '⇅'; el.style.opacity = '.4'; }
+    if(c === indSortCol) el.style.opacity = '1';
   });
+  rInd();
+}
+
+function atualizarBtnsMassa(){
+  const n = indSel.size;
+  const btnM = document.getElementById('btn-massa');
+  const btnD = document.getElementById('btn-del-massa');
+  const info = document.getElementById('ind-sel-info');
+  if(btnM) btnM.style.display = n > 0 ? 'inline-flex' : 'none';
+  if(btnD) btnD.style.display = n > 0 ? 'inline-flex' : 'none';
+  if(info){ if(n > 0){ info.style.display='block'; info.textContent = n + ' indicaç' + (n===1?'ão':'ões') + ' selecionada' + (n===1?'':'s'); } else info.style.display='none'; }
+}
+
+function toggleSelRow(id){
+  if(indSel.has(id)) indSel.delete(id); else indSel.add(id);
+  atualizarBtnsMassa();
+  // atualiza checkbox da linha
+  const chk = document.getElementById('chk-ind-'+id);
+  if(chk) chk.checked = indSel.has(id);
+  // atualiza estado do "selecionar todos"
+  const f = getIndFiltrado();
+  const chkAll = document.getElementById('chk-all-ind');
+  if(chkAll) chkAll.checked = f.length > 0 && f.every(i => indSel.has(i.id));
+}
+
+function toggleSelAll(){
+  const f = getIndFiltrado();
+  const chkAll = document.getElementById('chk-all-ind');
+  const todosSelected = f.every(i => indSel.has(i.id));
+  if(todosSelected){ f.forEach(i => indSel.delete(i.id)); if(chkAll) chkAll.checked = false; }
+  else { f.forEach(i => indSel.add(i.id)); if(chkAll) chkAll.checked = true; }
+  atualizarBtnsMassa();
+  // Re-renderiza só os checkboxes das linhas
+  f.forEach(i => { const chk = document.getElementById('chk-ind-'+i.id); if(chk) chk.checked = indSel.has(i.id); });
+}
+
+function getIndFiltrado(){
+  const q = (document.getElementById('src-ind').value||'').toLowerCase();
+  const fp = document.getElementById('ft-ind-parc').value;
+  const fs = document.getElementById('ft-ind-status').value;
+  let f = IND.filter(i =>
+    (!q || (i.parceiro+i.cliente+i.cnpjCli+i.cnpjParc).toLowerCase().includes(q)) &&
+    (!fp || i.parceiro === fp) && (!fs || i.status === fs)
+  );
+  if(indSortCol){
+    f = [...f].sort((a,b) => {
+      let va = a[indSortCol]||'', vb = b[indSortCol]||'';
+      return indSortDir * String(va).localeCompare(String(vb), 'pt-BR');
+    });
+  }
+  return f;
+}
+
+function rInd(){
+  const q = (document.getElementById('src-ind').value||'').toLowerCase();
+  const fp = document.getElementById('ft-ind-parc').value;
+  const fs = document.getElementById('ft-ind-status').value;
+  const f = getIndFiltrado();
 
   // stats
-  const parceiros=[...new Set(IND.map(i=>i.parceiro))];
-  const ativos=IND.filter(i=>i.status==='Ativo').length;
-  const pendentes=IND.filter(i=>i.status==='Pendente').length;
+  const parceiros = [...new Set(IND.map(i=>i.parceiro))];
+  const ativos = IND.filter(i=>i.status==='Ativo').length;
+  const pendentes = IND.filter(i=>i.status==='Pendente').length;
   document.getElementById('stats-ind').innerHTML=`
     <div class="sc"><div class="sl">Total Indicações</div><div class="sv ac">${IND.length}</div></div>
     <div class="sc"><div class="sl">Parceiros</div><div class="sv">${parceiros.length}</div></div>
@@ -1641,30 +1796,27 @@ function rInd(){
     <div class="sc"><div class="sl">Pendentes</div><div class="sv">${pendentes}</div></div>
     <div class="sc"><div class="sl">Exibindo</div><div class="sv">${f.length}</div></div>`;
 
-  // populate filter
-  const sel=document.getElementById('ft-ind-parc');
-  const cur=sel.value;
-  sel.innerHTML='<option value="">Todos os parceiros</option>'+
+  // populate filter parceiro
+  const sel = document.getElementById('ft-ind-parc');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Todos os parceiros</option>'+
     [...new Set(IND.map(i=>i.parceiro))].sort().map(p=>`<option value="${p}"${p===cur?' selected':''}>${p}</option>`).join('');
 
-  const cont=document.getElementById('ind-groups-cont');
-  if(!f.length){cont.innerHTML='<div class="em">Nenhuma indicação encontrada</div>';return;}
+  if(indModo === 'agrupado'){
+    renderIndAgrupado(f, q||fp||fs);
+  } else {
+    renderIndTabular(f);
+  }
+}
 
-  // Group by parceiro
-  const grupos={};
-  f.forEach(i=>{
-    if(!grupos[i.parceiro])grupos[i.parceiro]={razao:i.razao,cnpjParc:i.cnpjParc,items:[]};
-    grupos[i.parceiro].items.push(i);
-  });
-
-  // If search is active, auto-expand all
-  const searchActive=q||fp||fs;
-
-  cont.innerHTML=Object.entries(grupos).sort((a,b)=>a[0].localeCompare(b[0])).map(([parceiro,g])=>{
-    const safe=parceiro.replace(/[^a-zA-Z0-9]/g,'_');
-    const isOpen=searchActive||indOpenGroups.has(parceiro);
-    const ativosG=g.items.filter(i=>i.status==='Ativo').length;
-    const pendentesG=g.items.filter(i=>i.status==='Pendente').length;
+function renderIndAgrupado(f, searchActive){
+  const cont = document.getElementById('ind-groups-cont');
+  if(!f.length){ cont.innerHTML='<div class="em">Nenhuma indicação encontrada</div>'; return; }
+  const grupos = {};
+  f.forEach(i=>{ if(!grupos[i.parceiro])grupos[i.parceiro]={razao:i.razao,cnpjParc:i.cnpjParc,items:[]}; grupos[i.parceiro].items.push(i); });
+  cont.innerHTML = Object.entries(grupos).sort((a,b)=>a[0].localeCompare(b[0])).map(([parceiro,g])=>{
+    const safe = parceiro.replace(/[^a-zA-Z0-9]/g,'_');
+    const isOpen = searchActive || indOpenGroups.has(parceiro);
     return`<div class="ind-group">
       <div class="ind-group-header" onclick="toggleIndGroup('${parceiro.replace(/'/g,"\\'")}')">
         <span class="ind-group-chevron${isOpen?' open':''}" id="indg-chev-${safe}">▶</span>
@@ -1672,16 +1824,11 @@ function rInd(){
           <div class="ind-group-name">${parceiro}</div>
           ${g.razao?`<div class="ind-group-razao">${g.razao}${g.cnpjParc?' · '+g.cnpjParc:''}</div>`:''}
         </div>
-        <div class="ind-group-meta">
-        </div>
       </div>
       <div class="ind-group-body${isOpen?' open':''}" id="indg-body-${safe}">
         <div class="tw" style="border-radius:0;border:none">
           <table>
-            <thead><tr>
-              <th>Cliente (Indicado)</th>
-              <th>CNPJ Cliente</th>
-            </tr></thead>
+            <thead><tr><th>Cliente (Indicado)</th><th>CNPJ Cliente</th></tr></thead>
             <tbody>
               ${g.items.map(i=>`<tr>
                 <td><strong style="color:var(--n900)">${i.cliente}</strong></td>
@@ -1697,6 +1844,160 @@ function rInd(){
       </div>
     </div>`;
   }).join('');
+}
+
+function statusBadgeTabular(s){
+  if(s==='Ativo') return '#22c55e';
+  if(s==='Inativo') return '#f87171';
+  return '#f59e0b';
+}
+
+function renderIndTabular(f){
+  const tbody = document.getElementById('ind-tbody');
+  const count = document.getElementById('ind-table-count');
+  const chkAll = document.getElementById('chk-all-ind');
+  if(!f.length){ tbody.innerHTML='<tr><td colspan="8"><div class="em">Nenhuma indicação encontrada</div></td></tr>'; if(count)count.textContent=''; return; }
+  if(chkAll) chkAll.checked = f.every(i=>indSel.has(i.id));
+
+  tbody.innerHTML = f.map(i=>{
+    const sel = indSel.has(i.id);
+    const dot = statusBadgeTabular(i.status);
+    return `<tr id="irow-${i.id}" style="${sel?'background:var(--o50)':''}" onclick="toggleSelRow(${i.id})">
+      <td onclick="event.stopPropagation()"><input type="checkbox" id="chk-ind-${i.id}" ${sel?'checked':''} onchange="toggleSelRow(${i.id})" style="width:14px;height:14px;accent-color:var(--orange);cursor:pointer"></td>
+      <td ondblclick="editCelula(${i.id},'parceiro',this)" title="Duplo clique para editar" style="cursor:text;min-width:120px"><span class="cel-val">${escHtml(i.parceiro)}</span></td>
+      <td ondblclick="editCelula(${i.id},'cliente',this)" title="Duplo clique para editar" style="cursor:text;min-width:140px"><strong class="cel-val" style="color:var(--n900)">${escHtml(i.cliente)}</strong></td>
+      <td ondblclick="editCelula(${i.id},'cnpjCli',this)" title="Duplo clique para editar" style="cursor:text;font-size:11px;color:var(--n500)"><span class="cel-val">${escHtml(i.cnpjCli||'')}</span></td>
+      <td ondblclick="editCelula(${i.id},'data',this)" title="Duplo clique para editar" style="cursor:text;font-size:11px"><span class="cel-val">${i.data||'—'}</span></td>
+      <td ondblclick="editCelulaStatus(${i.id},this)" title="Duplo clique para editar" style="cursor:pointer">
+        <span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700">
+          <span style="width:7px;height:7px;border-radius:50%;background:${dot};display:inline-block;flex-shrink:0"></span>${escHtml(i.status)}
+        </span>
+      </td>
+      <td ondblclick="editCelula(${i.id},'obs',this)" title="Duplo clique para editar" style="cursor:text;font-size:11px;color:var(--n500);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span class="cel-val">${escHtml(i.obs||'')}</span></td>
+      <td onclick="event.stopPropagation()" style="white-space:nowrap">
+        <button class="ab" onclick="editInd(${i.id})" title="Editar">✎</button>
+        <button class="ab" onclick="delInd(${i.id})" title="Excluir" style="color:#f87171">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+  if(count) count.textContent = f.length + ' indicaç' + (f.length===1?'ão':'ões') + (indSel.size>0?' · '+indSel.size+' selecionada'+(indSel.size===1?'':'s'):'');
+}
+
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Edição inline de célula de texto
+function editCelula(id, campo, td){
+  const spanEl = td.querySelector('.cel-val');
+  if(!spanEl || td.querySelector('input,select')) return;
+  const val = IND.find(i=>i.id===id)?.[campo]||'';
+  const inp = document.createElement('input');
+  inp.value = val;
+  inp.style.cssText = 'width:100%;padding:4px 6px;border:1.5px solid var(--orange);border-radius:4px;font-size:12px;font-family:var(--f);outline:none;background:#fff';
+  td.innerHTML = '';
+  td.appendChild(inp);
+  inp.focus(); inp.select();
+  const commit = async ()=>{
+    const novo = inp.value.trim();
+    const item = IND.find(i=>i.id===id);
+    if(!item){ rInd(); return; }
+    item[campo] = novo;
+    // Salva no Supabase
+    const campoMap = {parceiro:'parceiro',cliente:'cliente',cnpjCli:'cnpj_cliente',data:'data_indicacao',obs:'observacoes',razao:'razao_social_parceiro',cnpjParc:'cnpj_parceiro'};
+    if(item._sbId && campoMap[campo]){
+      try{ await sb.from('indicacoes').update({[campoMap[campo]]:novo||null}).eq('id',item._sbId); showSync('✓ Salvo'); }
+      catch(e){ showSync('⚠ Erro: '+e.message,false); }
+    }
+    rInd();
+  };
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){e.preventDefault();inp.blur();} if(e.key==='Escape'){inp.value=val;inp.blur();} });
+}
+
+// Edição inline de status (dropdown)
+function editCelulaStatus(id, td){
+  if(td.querySelector('select')) return;
+  const item = IND.find(i=>i.id===id);
+  if(!item) return;
+  const sel = document.createElement('select');
+  sel.style.cssText = 'padding:3px 6px;border:1.5px solid var(--orange);border-radius:4px;font-size:12px;font-family:var(--f);outline:none';
+  ['Ativo','Pendente','Inativo'].forEach(s=>{ const o=document.createElement('option'); o.value=s; o.textContent=s; if(s===item.status)o.selected=true; sel.appendChild(o); });
+  td.innerHTML = ''; td.appendChild(sel);
+  sel.focus();
+  const commit = async ()=>{
+    const novo = sel.value;
+    item.status = novo;
+    if(item._sbId){
+      try{ await sb.from('indicacoes').update({status:novo}).eq('id',item._sbId); showSync('✓ Salvo'); }
+      catch(e){ showSync('⚠ Erro: '+e.message,false); }
+    }
+    rInd();
+  };
+  sel.addEventListener('change', commit);
+  sel.addEventListener('blur', ()=>{ setTimeout(rInd, 100); });
+}
+
+// Modal edição em massa
+function openMassaModal(){
+  if(indSel.size===0) return;
+  document.getElementById('massa-count').textContent = indSel.size + ' indicaç' + (indSel.size===1?'ão':'ões') + ' selecionada' + (indSel.size===1?'':'s');
+  document.getElementById('massa-campo').value = '';
+  document.getElementById('massa-val-wrap').style.display = 'none';
+  // Popula dropdown de parceiros
+  const selParc = document.getElementById('massa-val-parceiro');
+  const paircList = [...new Set([...Object.keys(PARC_INFO),...IND.map(i=>i.parceiro)])].sort();
+  selParc.innerHTML = paircList.map(p=>`<option value="${p}">${p}</option>`).join('');
+  document.getElementById('modal-massa').style.display = 'flex';
+}
+function closeMassaModal(){ document.getElementById('modal-massa').style.display = 'none'; }
+function toggleMassaCampo(){
+  const campo = document.getElementById('massa-campo').value;
+  const wrap = document.getElementById('massa-val-wrap');
+  const lblEl = document.getElementById('massa-val-label');
+  document.getElementById('massa-val-status').style.display = 'none';
+  document.getElementById('massa-val-parceiro').style.display = 'none';
+  document.getElementById('massa-val-texto').style.display = 'none';
+  if(!campo){ wrap.style.display='none'; return; }
+  wrap.style.display = 'block';
+  if(campo==='status'){ document.getElementById('massa-val-status').style.display=''; lblEl.textContent='Novo status'; }
+  else if(campo==='parceiro'){ document.getElementById('massa-val-parceiro').style.display=''; lblEl.textContent='Novo parceiro'; }
+  else { document.getElementById('massa-val-texto').style.display=''; lblEl.textContent='Novo valor'; }
+}
+async function aplicarMassa(){
+  const campo = document.getElementById('massa-campo').value;
+  if(!campo){ alert('Selecione o campo a alterar'); return; }
+  let novo;
+  if(campo==='status') novo = document.getElementById('massa-val-status').value;
+  else if(campo==='parceiro') novo = document.getElementById('massa-val-parceiro').value;
+  else novo = document.getElementById('massa-val-texto').value.trim();
+  const campoMap = {parceiro:'parceiro',status:'status',obs:'observacoes'};
+  const ids = [...indSel];
+  const itens = IND.filter(i=>ids.includes(i.id));
+  itens.forEach(i=>i[campo]=novo);
+  // Salva no Supabase em lote
+  try{
+    await Promise.all(itens.filter(i=>i._sbId).map(i=>
+      sb.from('indicacoes').update({[campoMap[campo]]:novo||null}).eq('id',i._sbId)
+    ));
+    showSync('✓ ' + itens.length + ' registros atualizados');
+  }catch(e){ showSync('⚠ Erro: '+e.message, false); }
+  indSel.clear();
+  atualizarBtnsMassa();
+  closeMassaModal();
+  rInd();
+}
+async function delMassa(){
+  if(indSel.size===0) return;
+  if(!confirm('Excluir '+indSel.size+' indicaç'+(indSel.size===1?'ão':'ões')+'?')) return;
+  const ids = [...indSel];
+  const itens = IND.filter(i=>ids.includes(i.id));
+  IND = IND.filter(i=>!ids.includes(i.id));
+  try{
+    await Promise.all(itens.filter(i=>i._sbId).map(i=>sb.from('indicacoes').delete().eq('id',i._sbId)));
+    showSync('✓ ' + itens.length + ' registros removidos');
+  }catch(e){ showSync('⚠ Erro ao remover: '+e.message, false); }
+  indSel.clear();
+  atualizarBtnsMassa();
+  rInd();
 }
 
 function autoFillParceiro(){
