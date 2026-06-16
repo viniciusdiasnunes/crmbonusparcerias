@@ -414,6 +414,7 @@ th[onclick]{transition:background .15s;}
       </div>
       <!-- Comuns -->
       <button class="btn btn-g" onclick="exportInd()">↓ Exportar</button>
+      <button class="btn btn-g" onclick="openImportIndModal()">↑ Importar em massa</button>
       <button class="btn btn-g" id="btn-modo-toggle" onclick="toggleModoInd()" title="Alternar modo de visualização">⇄ Modo Edição</button>
       <button class="btn btn-p" onclick="openIndM()">+ Nova Indicação</button>
     </div>
@@ -497,6 +498,57 @@ th[onclick]{transition:background .15s;}
     <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
       <button class="btn btn-g" onclick="closeMassaModal()">Cancelar</button>
       <button class="btn btn-p" onclick="aplicarMassa()">Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL IMPORTAÇÃO EM MASSA INDICAÇÕES -->
+<div id="modal-import-ind" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto" onclick="if(event.target===this)closeImportIndModal()">
+  <div style="background:#fff;border-radius:12px;padding:24px;width:100%;max-width:660px;border-top:4px solid var(--orange);max-height:85vh;overflow-y:auto" onclick="event.stopPropagation()">
+    <div class="mh">
+      <div class="mt">Importar Indicações em Massa</div>
+      <button class="xb" onclick="closeImportIndModal()">×</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div>
+        <div class="upload-zone" onclick="document.getElementById('fi-import-ind').click()" ondragover="event.preventDefault()" ondrop="event.preventDefault();hImportIndDrop(event)">
+          <div style="font-size:30px;margin-bottom:8px">📋</div>
+          <div style="font-size:13px;font-weight:700;color:var(--n700);margin-bottom:4px">Arraste ou clique para selecionar</div>
+          <div style="font-size:11px;color:var(--n300)">.xlsx com colunas do modelo</div>
+        </div>
+        <input type="file" id="fi-import-ind" style="display:none" accept=".xlsx,.xls" onchange="hImportIndFile(event)">
+        <div id="import-ind-fn" style="font-size:11px;color:var(--od);margin-top:8px;font-weight:600"></div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--n500);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">Formato esperado</div>
+        <div style="font-size:12px;color:var(--n700);line-height:1.9">
+          Coluna <strong>Parceiro</strong><br>
+          Coluna <strong>Empresa Indicada</strong><br>
+          Coluna <strong>CNPJ da empresa Indicada</strong>
+        </div>
+        <div style="padding:10px;background:var(--n50);border-radius:var(--r);font-size:11px;color:var(--n500);margin-top:12px">
+          Todas as linhas serão importadas com status <strong>Ativo</strong> e data de hoje. Duplicatas (mesmo parceiro + CNPJ já existente) serão ignoradas.
+        </div>
+      </div>
+    </div>
+    <div id="import-ind-preview" style="display:none">
+      <div style="font-size:11px;font-weight:700;color:var(--n900);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Prévia</div>
+      <div class="tw" style="max-height:280px;overflow-y:auto">
+        <table>
+          <thead><tr><th>Parceiro</th><th>Empresa Indicada</th><th>CNPJ</th><th style="text-align:center">Status</th></tr></thead>
+          <tbody id="import-ind-tbody"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:12px;padding:12px;background:var(--ol);border-radius:var(--r);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-size:10px;color:var(--n500);text-transform:uppercase;letter-spacing:0.8px;font-weight:600">Linhas a importar</div>
+          <div style="font-size:20px;font-weight:700;color:var(--od)" id="import-ind-count"></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-g" onclick="closeImportIndModal()">Cancelar</button>
+          <button class="btn btn-p" onclick="confirmarImportInd()">✓ Importar</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -2132,18 +2184,7 @@ function rBonusTech(){
   const src=(document.getElementById('src-bt').value||'').toLowerCase();
   const pol=document.getElementById('ft-bt-pol').value;
   const rows=ano==='2025'?CT25:CT26;
-  // Nomes dos parceiros com contrato tech ativo no cadastro
-  const nomesComContrato=P.filter(p=>p.tech).map(p=>p.nome.toLowerCase().trim());
-  // Para grupos Linx, inclui os membros das subdivisões
-  const LINX_MEMBROS=[
-    'linx retail — seta','linx retail — seta v2','linx retail — microvix','linx retail — microvix v2',
-    'linx enterprise — millenium','linx enterprise — omni pos','linx enterprise — linx pos','linx enterprise — linx pos v2','linx enterprise — store x'
-  ];
-  const temLinx=nomesComContrato.some(n=>n.includes('linx'));
   let filtered=rows.filter(r=>{
-    const rLow=r.nome.toLowerCase().trim();
-    const temContrato=nomesComContrato.includes(rLow)||(temLinx&&LINX_MEMBROS.includes(rLow));
-    if(!temContrato)return false;
     if(src&&!r.nome.toLowerCase().includes(src))return false;
     if(pol&&!(r.pol||'').includes(pol))return false;
     return true;
@@ -3168,6 +3209,144 @@ async function registrarTech(){
   }catch(e){showSync('⚠ Erro ao salvar: '+e.message,false);}
   rBonusTech();
   closeTechUploadModal();
+}
+
+// ── IMPORTAÇÃO EM MASSA DE INDICAÇÕES ────────────────────────────
+var importIndDadosPendentes=null;
+
+function openImportIndModal(){
+  document.getElementById('modal-import-ind').style.display='flex';
+}
+function closeImportIndModal(){
+  document.getElementById('modal-import-ind').style.display='none';
+  document.getElementById('import-ind-fn').textContent='';
+  document.getElementById('import-ind-preview').style.display='none';
+  document.getElementById('fi-import-ind').value='';
+  importIndDadosPendentes=null;
+}
+function hImportIndDrop(e){var f=e.dataTransfer.files[0];if(f)procImportInd(f);}
+function hImportIndFile(e){var f=e.target.files[0];if(f)procImportInd(f);}
+
+function procImportInd(file){
+  document.getElementById('import-ind-fn').textContent='Lendo '+file.name+'...';
+  var rd=new FileReader();
+  rd.onload=function(e){
+    try{
+      var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      document.getElementById('import-ind-fn').textContent='✓ '+file.name+' — '+rows.length+' linhas';
+      processarImportInd(rows);
+    }catch(err){
+      document.getElementById('import-ind-fn').textContent='Erro: '+err.message;
+    }
+  };
+  rd.readAsArrayBuffer(file);
+}
+
+function processarImportInd(rows){
+  var hoje=new Date().toISOString().slice(0,10);
+  // Detecta colunas pelo cabeçalho (flexível)
+  var sample=rows[0]||{};
+  var cols=Object.keys(sample);
+  var cParc=cols.find(function(c){return /parceiro/i.test(c);});
+  var cCli=cols.find(function(c){return /empresa|cliente/i.test(c);});
+  var cCNPJ=cols.find(function(c){return /cnpj/i.test(c);});
+
+  if(!cParc||!cCli){
+    document.getElementById('import-ind-fn').textContent+=' — Colunas Parceiro/Empresa não encontradas';
+    return;
+  }
+
+  // CNPJs já cadastrados para deduplicação
+  var existentes=new Set(IND.map(function(i){
+    return (i.parceiro+'__'+String(i.cnpjCli||'').replace(/[^0-9]/g,'')).toLowerCase();
+  }));
+
+  var linhas=[];
+  var ignoradas=0;
+  rows.forEach(function(r){
+    var parceiro=String(r[cParc]||'').trim();
+    var cliente=String(r[cCli]||'').trim();
+    var cnpj=String(r[cCNPJ]||'').replace(/[^0-9]/g,'');
+    if(!parceiro||!cliente)return;
+    var chave=(parceiro+'__'+cnpj).toLowerCase();
+    if(existentes.has(chave)){ignoradas++;return;}
+    existentes.add(chave); // evita duplicata dentro do próprio arquivo
+    linhas.push({parceiro:parceiro,cliente:cliente,cnpj:cnpj,duplicata:false});
+  });
+
+  if(!linhas.length){
+    document.getElementById('import-ind-fn').textContent+=' — Nenhuma linha nova para importar'+(ignoradas?' ('+ignoradas+' duplicata'+(ignoradas>1?'s':'')+' ignorada'+(ignoradas>1?'s':'')+')':'');
+    return;
+  }
+
+  importIndDadosPendentes={linhas:linhas,hoje:hoje,ignoradas:ignoradas};
+
+  var msg='OK: '+file.name+' — '+linhas.length+' para importar';
+  if(ignoradas)msg+=' · '+ignoradas+' duplicata'+(ignoradas>1?'s':'')+' ignorada'+(ignoradas>1?'s':'');
+  document.getElementById('import-ind-fn').textContent=msg;
+
+  document.getElementById('import-ind-count').textContent=linhas.length;
+  document.getElementById('import-ind-tbody').innerHTML=linhas.map(function(l){
+    return '<tr>'
+      +'<td><strong>'+l.parceiro+'</strong></td>'
+      +'<td>'+l.cliente+'</td>'
+      +'<td style="font-size:11px;color:var(--n500);font-family:monospace">'+(l.cnpj?fmtCNPJ(l.cnpj):'—')+'</td>'
+      +'<td style="text-align:center"><span class="badge b-signed">Ativo</span></td>'
+      +'</tr>';
+  }).join('');
+  document.getElementById('import-ind-preview').style.display='block';
+}
+
+async function confirmarImportInd(){
+  if(!importIndDadosPendentes)return;
+  var linhas=importIndDadosPendentes.linhas;
+  var hoje=importIndDadosPendentes.hoje;
+  var inserts=[];
+  linhas.forEach(function(l){
+    var pObj=P.find(function(p){return p.nome.toLowerCase()===l.parceiro.toLowerCase();});
+    var razao=pObj?(pObj.prod||''):'';
+    var cnpjParc=pObj?(pObj.cnpj||''):'';
+    var novo={
+      id:Date.now()+Math.random(),
+      parceiro:l.parceiro,
+      razao:razao,
+      cnpjParc:cnpjParc,
+      cliente:l.cliente,
+      cnpjCli:l.cnpj,
+      data:hoje,
+      status:'Ativo',
+      obs:''
+    };
+    IND.push(novo);
+    inserts.push({
+      parceiro:l.parceiro,
+      razao_social_parceiro:razao,
+      cnpj_parceiro:cnpjParc,
+      cliente:l.cliente,
+      cnpj_cliente:l.cnpj,
+      data_indicacao:hoje,
+      status:'Ativo',
+      observacoes:''
+    });
+  });
+  try{
+    var res=await sb.from('indicacoes').insert(inserts).select();
+    if(res.error)throw res.error;
+    // Atualiza _sbId nos registros locais
+    if(res.data&&res.data.length){
+      res.data.forEach(function(r,i){
+        var local=IND[IND.length-linhas.length+i];
+        if(local)local._sbId=r.id;
+      });
+    }
+    showSync('✓ '+linhas.length+' indicaç'+(linhas.length===1?'ão':'ões')+' importada'+(linhas.length===1?'':'s'));
+  }catch(e){
+    showSync('⚠ Erro ao salvar: '+e.message,false);
+  }
+  closeImportIndModal();
+  rInd();
 }
 </script>
 <div id="modal-biz-det" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto" onclick="if(event.target===this)fecharBizDet()">
