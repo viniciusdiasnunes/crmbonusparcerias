@@ -1629,6 +1629,7 @@ function avatarColor(nome){
 // Caso contrário retorna 'Inativo'.
 function computarStatusParceiro(p){
   if(p.tech&&p.tech.val)return'Ativo';
+  if(p.biz&&p.biz.pct)return'Ativo';
   const nomeP=(p.nome||'').toLowerCase();
   const temIndAtiva=IND.some(i=>(i.parceiro||'').toLowerCase()===nomeP&&i.status==='Ativo');
   return temIndAtiva?'Ativo':'Inativo';
