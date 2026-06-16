@@ -837,7 +837,7 @@ const POL={
 };
 
 // matchPol — resolve integração para objeto {nome, tech, biz} consultando P dinamicamente
-// Prioridade: (1) TECH_POL_MAP/INTEG_ALIAS_MAP → parceiro em P; (2) fallback no POL estático
+// Prioridade: (1) TECH_POL_MAP/INTEG_ALIAS_MAP → parceiro em P; (2) fallback no POL estático SOMENTE se P ainda não carregou
 function matchPol(raw){
   if(!raw)return null;
   const k=String(raw).toLowerCase().trim();
@@ -853,8 +853,9 @@ function matchPol(raw){
       };
     }
   }
-  // Fallback: mapa estático POL (garante retrocompatibilidade se P ainda não carregou)
-  if(POL[k])return POL[k];
+  // Fallback: mapa estático POL — usado APENAS se P ainda está vazio (banco não carregou ainda)
+  // Quando P já foi populado pelo Supabase, integrações sem parceiro cadastrado são ignoradas
+  if(P.length===0&&POL[k])return POL[k];
   return null;
 }
 
