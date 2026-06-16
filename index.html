@@ -2132,7 +2132,18 @@ function rBonusTech(){
   const src=(document.getElementById('src-bt').value||'').toLowerCase();
   const pol=document.getElementById('ft-bt-pol').value;
   const rows=ano==='2025'?CT25:CT26;
+  // Nomes dos parceiros com contrato tech ativo no cadastro
+  const nomesComContrato=P.filter(p=>p.tech).map(p=>p.nome.toLowerCase().trim());
+  // Para grupos Linx, inclui os membros das subdivisões
+  const LINX_MEMBROS=[
+    'linx retail — seta','linx retail — seta v2','linx retail — microvix','linx retail — microvix v2',
+    'linx enterprise — millenium','linx enterprise — omni pos','linx enterprise — linx pos','linx enterprise — linx pos v2','linx enterprise — store x'
+  ];
+  const temLinx=nomesComContrato.some(n=>n.includes('linx'));
   let filtered=rows.filter(r=>{
+    const rLow=r.nome.toLowerCase().trim();
+    const temContrato=nomesComContrato.includes(rLow)||(temLinx&&LINX_MEMBROS.includes(rLow));
+    if(!temContrato)return false;
     if(src&&!r.nome.toLowerCase().includes(src))return false;
     if(pol&&!(r.pol||'').includes(pol))return false;
     return true;
