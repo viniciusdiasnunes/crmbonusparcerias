@@ -881,20 +881,15 @@ function registrarLog(email, tipo, detalhe){
 }
 
 async function carregarLogs(){
-  console.log('carregarLogs chamada');
   const tb=document.getElementById('tb-logs');
-  console.log('tb-logs element:', tb);
-  if(!tb){console.log('tb-logs NAO ENCONTRADO');return;}
+  if(!tb)return;
   tb.innerHTML='<tr><td colspan="4"><div class="em">Carregando...</div></td></tr>';
   try{
     const{data,error}=await sb.from('logs_acesso').select('*').order('created_at',{ascending:false}).limit(500);
-    console.log('logs result — data:', data, 'error:', error);
     if(error)throw error;
     window.LOGS_DATA=data||[];
-    console.log('LOGS_DATA set, length:', window.LOGS_DATA.length);
     rLogs();
-    console.log('rLogs chamada');
-  }catch(e){console.log('CATCH error:', e);
+  }catch(e){
     tb.innerHTML=`<tr><td colspan="4"><div style="padding:32px 20px;text-align:center">
       <div style="font-size:13px;font-weight:700;color:#922;margin-bottom:8px">Tabela não encontrada no Supabase</div>
       <div style="font-size:12px;color:var(--n500);margin-bottom:16px">Execute o SQL abaixo no <strong>SQL Editor</strong> do seu projeto Supabase:</div>
@@ -918,7 +913,6 @@ create policy "select" on logs_acesso for select using (true);</pre>
 }
 
 function rLogs(){
-  console.log('rLogs chamada, LOGS_DATA:', window.LOGS_DATA?.length);
   const data=window.LOGS_DATA||[];
   const busca=(document.getElementById('src-logs')?.value||'').toLowerCase().trim();
   const user=document.getElementById('ft-logs-user')?.value||'';
@@ -1268,7 +1262,14 @@ function sw(t){
   const tabNames=['cadastro','indicacoes','business','bonus','logs'];
   document.querySelectorAll('.tab').forEach((el,i)=>{if(tabNames[i]===t)el.classList.add('active');});
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  document.getElementById('tab-'+t).classList.add('active');
+  const panelEl2=document.getElementById('tab-'+t);
+  panelEl2.classList.add('active');
+  if(t==='logs'){
+    console.log('panel tab-logs classes:', panelEl2.className);
+    console.log('panel display:', window.getComputedStyle(panelEl2).display);
+    console.log('panel offsetHeight:', panelEl2.offsetHeight);
+    console.log('panel innerHTML length:', panelEl2.innerHTML.length);
+  }
   if(t==='cadastro')rC();
   if(t==='business')rB();
   if(t==='indicacoes')rInd();
