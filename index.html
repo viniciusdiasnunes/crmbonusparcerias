@@ -803,14 +803,21 @@ body.viewer-mode .edit-only{display:none!important;}
 <div class="mo" id="modal">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="mh"><span class="mt" id="m-title">Novo Parceiro</span><button class="xb" onclick="closeM()">×</button></div>
+
+    <!-- Nome + CNPJ lado a lado -->
     <div class="fg">
-      <div class="fgrp full"><label class="fl">Nome da empresa</label><input class="fi" id="m-nome" placeholder="Ex: Presence Tecnologia"></div>
+      <div class="fgrp"><label class="fl">Nome da empresa</label><input class="fi" id="m-nome" placeholder="Ex: Presence Tecnologia"></div>
       <div class="fgrp"><label class="fl">CNPJ</label><input class="fi" id="m-cnpj" placeholder="00.000.000/0001-00"></div>
+    </div>
+    <!-- Status do contrato (linha própria) -->
+    <div class="fg" style="margin-top:10px">
       <div class="fgrp"><label class="fl">Status do contrato</label><select class="fi" id="m-status"><option>Assinado</option><option>Em negociação</option><option>Contrato enviado</option></select></div>
-      <div class="fgrp"><label class="fl">Produtos</label><input class="fi" id="m-prod" placeholder="GIFTBACK · CRM360 · TODOS"></div>
-      <div class="fgrp"><label class="fl">Contato comercial</label><input class="fi" id="m-cont" placeholder="Nome e telefone"></div>
-      <div class="fgrp"><label class="fl">Email financeiro</label><input class="fi" id="m-email" placeholder="financeiro@empresa.com"></div>
-      <div class="fgrp full"><label class="fl">Observações</label><input class="fi" id="m-obs" placeholder="Observações gerais..."></div>
+    </div>
+    <!-- 3 campos de contato alinhados -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:10px">
+      <div class="fgrp"><label class="fl">Nome do responsável</label><input class="fi" id="m-cont" placeholder="Nome do contato"></div>
+      <div class="fgrp"><label class="fl">E-mail financeiro</label><input class="fi" id="m-email" placeholder="financeiro@empresa.com"></div>
+      <div class="fgrp"><label class="fl">Telefone</label><input class="fi" id="m-tel" placeholder="(11) 99999-9999"></div>
     </div>
     <!-- Contratos -->
     <div style="margin-top:16px">
@@ -826,6 +833,7 @@ body.viewer-mode .edit-only{display:none!important;}
             <div class="fgrp full"><label class="fl">Política (ex: R$0,05 por bônus gerado)</label><input class="fi" id="m-tech-pol" placeholder="R$0,05 por bônus gerado via integração"></div>
             <div class="fgrp"><label class="fl">Valor por bônus (R$)</label><input class="fi" id="m-tech-val" type="number" step="0.001" placeholder="0.05"></div>
             <div class="fgrp"><label class="fl">Vigência</label><input class="fi" id="m-tech-vig" placeholder="Se renova automaticamente"></div>
+            <div class="fgrp full"><label class="fl">Observações</label><input class="fi" id="m-obs-tech" placeholder="Observações sobre este contrato..."></div>
           </div>
         </div>
       </div>
@@ -840,6 +848,7 @@ body.viewer-mode .edit-only{display:none!important;}
             <div class="fgrp full"><label class="fl">Política (ex: 10% sobre receita líquida dos clientes indicados)</label><input class="fi" id="m-biz-pol" placeholder="10% sobre receita dos clientes indicados, adimplentes"></div>
             <div class="fgrp"><label class="fl">Percentual (%)</label><input class="fi" id="m-biz-pct" type="number" step="0.1" placeholder="10"></div>
             <div class="fgrp"><label class="fl">Vigência</label><input class="fi" id="m-biz-vig" placeholder="Ex: 24 meses / se renova automaticamente"></div>
+            <div class="fgrp full"><label class="fl">Observações</label><input class="fi" id="m-obs-biz" placeholder="Observações sobre este contrato..."></div>
           </div>
         </div>
       </div>
@@ -2294,16 +2303,21 @@ function toggleContrato(t){
 function openM(mode,id=null){
   eid=id;
   document.getElementById('m-title').textContent=mode==='add'?'Novo Parceiro':'Editar Parceiro';
-  const fields=['m-nome','m-cnpj','m-prod','m-cont','m-email','m-obs','m-tech-pol','m-tech-val','m-tech-vig','m-biz-pol','m-biz-pct','m-biz-vig'];
+  const fields=['m-nome','m-cnpj','m-cont','m-tel','m-email','m-obs-tech','m-obs-biz','m-tech-pol','m-tech-val','m-tech-vig','m-biz-pol','m-biz-pct','m-biz-vig'];
   if(mode==='edit'&&id){
     const p=P.find(x=>x.id===id);if(!p)return;
+    // Separar cont em nome e tel (formato "Nome 11 99999-9999")
+    const contParts=(p.cont||'').split(/\s+(\d{2}[\s\d\-]+)$/);
+    const contNomeFill=contParts.length>1?contParts[0].trim():p.cont||'';
+    const contTelFill=contParts.length>1?contParts[1].trim():'';
     document.getElementById('m-nome').value=p.nome;
     document.getElementById('m-cnpj').value=p.cnpj;
     document.getElementById('m-status').value=p.status;
-    document.getElementById('m-prod').value=p.prod||'';
-    document.getElementById('m-cont').value=p.cont||'';
+    document.getElementById('m-cont').value=contNomeFill;
+    document.getElementById('m-tel').value=contTelFill;
     document.getElementById('m-email').value=p.email||'';
-    document.getElementById('m-obs').value=p.obs||'';
+    document.getElementById('m-obs-tech').value=p.obstech||'';
+    document.getElementById('m-obs-biz').value=p.obsbiz||'';
     const techOn=!!p.tech;
     document.getElementById('m-tech-on').checked=techOn;
     document.getElementById('m-tech-fields').style.display=techOn?'grid':'none';
@@ -2327,9 +2341,13 @@ async function salvar(){
   const nome=document.getElementById('m-nome').value.trim();if(!nome){alert('Informe o nome');return;}
   const techOn=document.getElementById('m-tech-on').checked;
   const bizOn=document.getElementById('m-biz-on').checked;
+  const contNomeVal=document.getElementById('m-cont').value.trim();
+  const contTelVal=document.getElementById('m-tel').value.trim();
+  const contVal=contNomeVal+(contTelVal?' '+contTelVal:'');
   const d={nome,cnpj:document.getElementById('m-cnpj').value,status:document.getElementById('m-status').value,
-    prod:document.getElementById('m-prod').value,cont:document.getElementById('m-cont').value,
-    email:document.getElementById('m-email').value,obs:document.getElementById('m-obs').value,
+    prod:'',cont:contVal,
+    email:document.getElementById('m-email').value,obs:document.getElementById('m-obs-tech').value||document.getElementById('m-obs-biz').value,
+    obstech:document.getElementById('m-obs-tech').value,obsbiz:document.getElementById('m-obs-biz').value,
     tech:techOn?{pol:document.getElementById('m-tech-pol').value,val:parseFloat(document.getElementById('m-tech-val').value)||0.05,vig:document.getElementById('m-tech-vig').value}:null,
     biz:bizOn?{pol:document.getElementById('m-biz-pol').value,pct:parseFloat(document.getElementById('m-biz-pct').value)||10,vig:document.getElementById('m-biz-vig').value}:null,
   };
