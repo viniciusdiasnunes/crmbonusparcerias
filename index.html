@@ -270,11 +270,7 @@ body.viewer-mode .edit-only{display:none!important;}
     </select>
     <button class="btn btn-p" class="btn btn-p edit-only" onclick="openM('add')">+ Novo Parceiro</button>
   </div>
-  <div style="display:flex;gap:16px;margin-bottom:14px;align-items:center;flex-wrap:wrap">
-    <span style="font-size:10px;font-weight:700;color:var(--n300);text-transform:uppercase;letter-spacing:0.8px">Status:</span>
-    <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--n500)"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;flex-shrink:0"></span>Ativo — tem integração ou indicação ativa</span>
-    <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--n500)"><span style="width:8px;height:8px;border-radius:50%;background:#f87171;display:inline-block;flex-shrink:0"></span>Inativo — sem contratos ativos</span>
-  </div>
+
   <div id="cards-c"></div>
 </div>
 
@@ -1309,7 +1305,7 @@ async function carregarParceirosSupabase(){
         id:r.id,
         nome:r.nome,
         cnpj:r.cnpj||'',
-        status:r.status||'Assinado',
+        status:r.status||'Ativo',
         prod:r.politica||'',
         cont:r.contato_comercial||'',
         email:r.email_financeiro||'',
@@ -1336,7 +1332,7 @@ async function salvarSupabase(d){
       cnpj:d.cnpj||null,
       tipo:d.tech&&d.biz?'Ambos':d.tech?'Tech':'Business',
       politica:d.prod||null,
-      status:d.status||'Assinado',
+      status:d.status||'Ativo',
       contato_comercial:d.cont||null,
       email_financeiro:d.email||null,
       observacoes:d.obs||null,
@@ -1591,15 +1587,31 @@ function avatarColor(nome){
   return{bg,fg};
 }
 
-// Retorna 'Ativo' se o parceiro tem contrato de integração (tech)
-// OU ao menos uma indicação com status 'Ativo' em IND.
-// Caso contrário retorna 'Inativo'.
+// Retorna o status manual do parceiro ('Ativo' ou 'Inativo').
 function computarStatusParceiro(p){
-  if(p.tech&&p.tech.val)return'Ativo';
-  if(p.biz&&p.biz.pct)return'Ativo';
-  const nomeP=(p.nome||'').toLowerCase();
-  const temIndAtiva=IND.some(i=>(i.parceiro||'').toLowerCase()===nomeP&&i.status==='Ativo');
-  return temIndAtiva?'Ativo':'Inativo';
+  return(p.status==='Ativo')?'Ativo':'Inativo';
+}
+
+async function toggleStatusParceiro(id){
+  const p=P.find(x=>x.id===id);if(!p)return;
+  const novoStatus=p.status==='Ativo'?'Inativo':'Ativo';
+  const verbo=novoStatus==='Ativo'?'Ativar':'Desativar';
+  const ok=confirm(`Deseja ${verbo} o contrato de ${p.nome}?`);
+  if(!ok)return;
+  try{
+    const {error}=await sb.from('parceiros').update({status:novoStatus}).eq('id',id);
+    if(error)throw error;
+    p.status=novoStatus;
+    showSync(`✓ Contrato de ${p.nome} ${novoStatus==='Ativo'?'ativado':'desativado'}`);
+    registrarLog(window.CURRENT_EMAIL,'edit',`Status alterado para ${novoStatus}: ${p.nome}`);
+    rC();
+    // Se o drawer estiver aberto para esse parceiro, reabre
+    if(document.getElementById('drawer').style.display!=='none'){
+      openDrawer(id);
+    }
+  }catch(e){
+    alert('Erro ao salvar status: '+e.message);
+  }
 }
 
 function rC(){
@@ -1647,8 +1659,8 @@ function rC(){
           <div style="font-size:12px;font-weight:700;color:var(--od)">${p.biz.pct}%<span style="font-weight:400;color:var(--n300);font-size:10px"> sobre receita</span></div>`
           :`<div style="font-size:10px;color:var(--n300)">—</div>`}
         </div>
-        <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-shrink:0">
-          <div style="width:8px;height:8px;border-radius:50%;background:${statusDot};flex-shrink:0" title="${statusComp}"></div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-shrink:0" onclick="event.stopPropagation()">
+          <button onclick="toggleStatusParceiro(${p.id})" style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;border:none;cursor:pointer;background:${statusComp==='Ativo'?'#D4EDDA':'#FCE8E8'};color:${statusComp==='Ativo'?'#1A6B35':'#922222'}">${statusComp}</button>
           <span style="font-size:10px;color:var(--n300)">Ver →</span>
         </div>
       </div>`;
@@ -1721,7 +1733,7 @@ function openDrawer(id){
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           ${p.tech?`<span class="badge b-tech">Integrações</span>`:''}
           ${p.biz?`<span class="badge b-biz">Indicações</span>`:''}
-          <span style="background:${statusColor};color:${statusTextColor};padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700">${statusComp}</span>
+          <span style="background:${statusColor};color:${statusTextColor};padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;border:none" onclick="toggleStatusParceiro(${p.id})">${statusComp}</span>
         </div>
       </div>
 
