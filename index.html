@@ -3735,9 +3735,12 @@ function buildTechMap(){
     TECH_POL_MAP[nomeLow]=p.nome;
     PARCEIROS_CONTRATO.push(nomeLow);
   });
-  // Adiciona aliases do mapa fixo — sempre registra, independente de estar em P
+  // Adiciona aliases do mapa fixo — somente se o parceiro destino existir em P com tech ativo
   Object.keys(INTEG_ALIAS_MAP).forEach(function(alias){
     var nomeParceiro=INTEG_ALIAS_MAP[alias];
+    // Valida que o parceiro destino existe no banco com contrato tech ativo
+    var parcExiste=P.some(function(p){return p.nome===nomeParceiro&&p.tech;});
+    if(!parcExiste)return;
     TECH_POL_MAP[alias]=nomeParceiro;
     if(!PARCEIROS_CONTRATO.includes(alias))PARCEIROS_CONTRATO.push(alias);
     // Garante que o parceiro destino tambem esta no mapa
