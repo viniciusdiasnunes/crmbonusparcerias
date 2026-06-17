@@ -2927,7 +2927,7 @@ function rBonusTech(){
     const gTot=gTotals.reduce((s,v)=>s+v,0);
     const chev=collapsed?'▶':'▾';
     let header=`<tr style="cursor:pointer;user-select:none" onclick="toggleLinxGroup('${safe}')">`;
-    header+=`<td style="font-weight:700"><span style="font-size:11px;color:var(--orange);margin-right:6px">${chev}</span>${groupNome}</td>`;
+    header+=`<td style="font-size:13px;font-weight:700;color:var(--n900)"><span style="font-size:11px;color:var(--orange);margin-right:6px">${chev}</span>${groupNome}</td>`;
     header+=`<td style="color:var(--n300);font-size:11px">R$0,05/bônus</td>`;
     gTotals.forEach(v=>{ header+=`<td style="text-align:right;font-size:11px;font-weight:600;color:var(--od)">${v>0?brl(v):'<span style="color:var(--n100)">—</span>'}</td>`; });
     header+=`<td style="text-align:right;font-weight:700;color:var(--od)">${brl(gTot)}</td></tr>`;
@@ -2949,7 +2949,7 @@ function rBonusTech(){
     // Parceiro normal
     const tot=r.vals.reduce((s,v)=>s+(v||0),0);
     r.vals.forEach((v,i)=>totals[i]+=(v||0));
-    html+=`<tr><td style="font-weight:600">${r.nome}</td><td style="color:var(--n300);font-size:11px">${r.pol}</td>`;
+    html+=`<tr><td style="font-size:13px;font-weight:700;color:var(--n900)">${r.nome}</td><td style="color:var(--n300);font-size:11px">${r.pol}</td>`;
     r.vals.forEach((v,i)=>{
       if(v>0){
         const chk=chkIcon(r.nome+'__'+i+'__tech');
