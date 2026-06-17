@@ -132,7 +132,7 @@ tr:hover td{background:var(--o50);}
 .ind-group-header:hover{background:var(--ol);}
 .ind-group-chevron{color:var(--orange);font-size:13px;transition:transform .2s;display:inline-block;min-width:14px;}
 .ind-group-chevron.open{transform:rotate(90deg);}
-.ind-group-name{font-size:12px;font-weight:700;color:var(--n900);flex:1;}
+.ind-group-name{font-size:13px;font-weight:700;color:var(--n900);flex:1;}
 .ind-group-razao{font-size:10px;color:var(--n500);font-weight:400;}
 .ind-group-meta{display:flex;gap:6px;align-items:center;}
 .ind-group-count{background:var(--orange);color:var(--n900);padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;}
@@ -1172,7 +1172,7 @@ function rUsuarios(){
     var roleCls=u.role==='admin'?'urole admin':'urole viewer';
     return`<tr>
       <td>
-        <div style="font-size:13px;font-weight:600;color:var(--n900)">${escHtml(nome)}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--n900)">${escHtml(nome)}</div>
         ${isMe?'<div style="font-size:10px;color:var(--od);font-weight:700;text-transform:uppercase;letter-spacing:0.5px">Você</div>':''}
       </td>
       <td style="font-size:12px;color:var(--n500);font-family:monospace">${escHtml(email)}</td>
@@ -1841,10 +1841,10 @@ function rComTable(dados,q,tbId,statsId,label){
     const total=clientes.length;
     const nomeCell=isBiz?`<td>
       <div style="display:flex;align-items:center;gap:6px">
-        <strong style="color:var(--n900)">${c.nome}</strong>
+        <span style="font-size:13px;font-weight:700;color:var(--n900)">${c.nome}</span>
         ${total>0?`<span style="background:var(--ol);color:var(--od);padding:1px 7px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer" title="Ver clientes indicados" onclick="abrirClientesIndicados('${c.nome.replace(/'/g,"\'")}',event)">${total}</span>`:''}
       </div>
-    </td>`:`<td><strong style="color:var(--n900)">${c.nome}</strong></td>`;
+    </td>`:`<td><span style="font-size:13px;font-weight:700;color:var(--n900)">${c.nome}</span></td>`;
     return`<tr>${nomeCell}<td style="font-size:10px;color:var(--n300)">${c.pol}</td>${cells}<td style="text-align:right;font-weight:700;color:var(--od)">${brl(t)}</td></tr>`;
   });
   const tots=M.map((_,i)=>sm(f.map(c=>c.vals[i]||0)));
@@ -1890,7 +1890,7 @@ function abrirDetalheAdim(parceiro, mesIdx){
   document.getElementById('chk-disparo').checked=((JSON.parse(localStorage.getItem('bizDetChk')||'{}')[_bizDetKey+'__disparo']===true));
   atualizarCorChk();
   document.getElementById('biz-det-tbody').innerHTML=itens.map(i=>`<tr>
-    <td><strong style="color:var(--n900)">${i.cliente}</strong></td>
+    <td><span style="font-size:13px;font-weight:700;color:var(--n900)">${i.cliente}</span></td>
     <td style="font-size:11px;color:var(--n500);font-family:monospace">${fmtCNPJ(i.cnpj)}</td>
     <td style="text-align:right;font-size:12px">${brl(i.val)}</td>
     <td style="text-align:right;font-weight:700;color:var(--od)">${brl(i.comissao)}</td>
@@ -1909,7 +1909,7 @@ function abrirClientesIndicados(parceiro, evt){
   document.getElementById('biz-det-sub').textContent=clientes.length+' cliente'+(clientes.length!==1?'s ativos':'ativo');
   document.getElementById('biz-det-total').textContent='';
   document.getElementById('biz-det-tbody').innerHTML=clientes.map(i=>`<tr>
-    <td><strong style="color:var(--n900)">${i.cliente}</strong></td>
+    <td><span style="font-size:13px;font-weight:700;color:var(--n900)">${i.cliente}</span></td>
     <td style="font-size:11px;color:var(--n500);font-family:monospace" colspan="3">${i.cnpjCli||'—'}</td>
   </tr>`).join('');
   document.getElementById('modal-biz-det').style.display='flex';
@@ -2545,7 +2545,7 @@ function renderIndAgrupado(f, searchActive){
             <thead><tr><th>Cliente (Indicado)</th><th>CNPJ Cliente</th></tr></thead>
             <tbody>
               ${g.items.map(i=>`<tr>
-                <td><strong style="color:var(--n900)">${i.cliente}</strong></td>
+                <td><span style="font-size:13px;font-weight:700;color:var(--n900)">${i.cliente}</span></td>
                 <td style="font-size:11px;color:var(--n500)">${i.cnpjCli||'—'}</td>
               </tr>`).join('')}
             </tbody>
@@ -2579,7 +2579,7 @@ function renderIndTabular(f){
     return `<tr id="irow-${i.id}" style="${sel?'background:var(--o50)':''}" onclick="toggleSelRow(${i.id})">
       <td onclick="event.stopPropagation()"><input type="checkbox" id="chk-ind-${i.id}" ${sel?'checked':''} onchange="toggleSelRow(${i.id})" style="width:14px;height:14px;accent-color:var(--orange);cursor:pointer"></td>
       <td ondblclick="editCelula(${i.id},'parceiro',this)" title="Duplo clique para editar" style="cursor:text;min-width:120px"><span class="cel-val">${escHtml(i.parceiro)}</span></td>
-      <td ondblclick="editCelula(${i.id},'cliente',this)" title="Duplo clique para editar" style="cursor:text;min-width:140px"><strong class="cel-val" style="color:var(--n900)">${escHtml(i.cliente)}</strong></td>
+      <td ondblclick="editCelula(${i.id},'cliente',this)" title="Duplo clique para editar" style="cursor:text;min-width:140px"><span class="cel-val" style="font-size:13px;font-weight:700;color:var(--n900)">${escHtml(i.cliente)}</span></td>
       <td ondblclick="editCelula(${i.id},'cnpjCli',this)" title="Duplo clique para editar" style="cursor:text;font-size:11px;color:var(--n500)"><span class="cel-val">${escHtml(i.cnpjCli||'')}</span></td>
       <td ondblclick="editCelula(${i.id},'data',this)" title="Duplo clique para editar" style="cursor:text;font-size:11px"><span class="cel-val">${i.data||'—'}</span></td>
       <td ondblclick="editCelulaStatus(${i.id},this)" title="Duplo clique para editar" style="cursor:pointer">
