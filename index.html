@@ -1842,7 +1842,7 @@ function rComTable(dados,q,tbId,statsId,label){
   else if(st.col==='total')sorted.sort((a,b)=>st.dir*(sm(a.vals)-sm(b.vals)));
 
   const renderFn=isBiz?rB:rBonusTech;
-  const thStyle='cursor:pointer;user-select:none;white-space:nowrap;';
+  const thStyle='cursor:pointer;user-select:none;white-space:nowrap;background:inherit;color:inherit;';
 
   const rows=sorted.map(c=>{
     const t=sm(c.vals);
@@ -2903,7 +2903,7 @@ function rBonusTech(){
   if(st.col==='nome')sorted.sort((a,b)=>st.dir*a.nome.localeCompare(b.nome,'pt-BR'));
   else if(st.col==='total')sorted.sort((a,b)=>st.dir*(a.vals.reduce((s,v)=>s+(v||0),0)-b.vals.reduce((s,v)=>s+(v||0),0)));
 
-  const thStyle='cursor:pointer;user-select:none;white-space:nowrap;';
+  const thStyle='cursor:pointer;user-select:none;white-space:nowrap;background:inherit;color:inherit;';
   const sortNome=sortIcon('bt','nome');
   const sortTot=sortIcon('bt','total');
 
