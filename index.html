@@ -3736,11 +3736,12 @@ function buildTechMap(){
     PARCEIROS_CONTRATO.push(nomeLow);
   });
   // Adiciona aliases do mapa fixo — somente se o parceiro destino existir em P com tech ativo
+  // Exceção: parceiros Linx sempre são registrados (agrupamento próprio, contrato sempre ativo)
+  var SEM_CONTRATO_ATIVO=['DataSystem','LaserChip','NuvemShop','TOTVS','Varejonline','VTEX - V2'];
   Object.keys(INTEG_ALIAS_MAP).forEach(function(alias){
     var nomeParceiro=INTEG_ALIAS_MAP[alias];
-    // Valida que o parceiro destino existe no banco com contrato tech ativo
-    var parcExiste=P.some(function(p){return p.nome===nomeParceiro&&p.tech;});
-    if(!parcExiste)return;
+    // Bloqueia parceiros explicitamente sem contrato de integração ativo
+    if(SEM_CONTRATO_ATIVO.includes(nomeParceiro))return;
     TECH_POL_MAP[alias]=nomeParceiro;
     if(!PARCEIROS_CONTRATO.includes(alias))PARCEIROS_CONTRATO.push(alias);
     // Garante que o parceiro destino tambem esta no mapa
