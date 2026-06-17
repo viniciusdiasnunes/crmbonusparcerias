@@ -1310,7 +1310,7 @@ function showSync(msg, ok=true){
 // Carrega parceiros do Supabase e mescla com os locais (locais têm prioridade de exibição se Supabase vazio)
 async function carregarParceirosSupabase(){
   try{
-    const {data,error}=await sb.from('parceiros').select('id,nome,cnpj,tipo,politica,status,contato_comercial,email_financeiro,observacoes,tech_val,tech_pol,tech_vig,biz_pct,biz_pol,biz_vig').order('id');
+    const {data,error}=await sb.from('parceiros').select('id,nome,cnpj,tipo,politica,status,contato_comercial,email_financeiro,observacoes,tech_val,tech_pol,tech_vig,tech_vig_ini,tech_vig_fim,biz_pct,biz_pol,biz_vig,biz_vig_ini,biz_vig_fim').order('id');
     if(error)throw error;
     if(data&&data.length>0){
       console.log('DEBUG parceiro[0]:', JSON.stringify(data[0]));
@@ -1323,8 +1323,8 @@ async function carregarParceirosSupabase(){
         cont:r.contato_comercial||'',
         email:r.email_financeiro||'',
         obs:r.observacoes||'',
-        tech:r.tech_val?{pol:r.tech_pol||'',val:r.tech_val,vigIni:(r.tech_vig||'').split('|')[0]||'',vigFim:(r.tech_vig||'').split('|')[1]||''}:null,
-        biz:r.biz_pct?{pol:r.biz_pol||'',pct:r.biz_pct,vigIni:(r.biz_vig||'').split('|')[0]||'',vigFim:(r.biz_vig||'').split('|')[1]||''}:null,
+        tech:r.tech_val?{pol:r.tech_pol||'',val:r.tech_val,vigIni:r.tech_vig_ini||'',vigFim:r.tech_vig_fim||''}:null,
+        biz:r.biz_pct?{pol:r.biz_pol||'',pct:r.biz_pct,vigIni:r.biz_vig_ini||'',vigFim:r.biz_vig_fim||''}:null,
         _sbId:r.id,
       }));
       P.splice(0,P.length,...remotos);
@@ -1351,10 +1351,12 @@ async function salvarSupabase(d){
       observacoes:d.obs||null,
       tech_val:d.tech?d.tech.val:null,
       tech_pol:d.tech?d.tech.pol||null:null,
-      tech_vig:d.tech?[d.tech.vigIni,d.tech.vigFim].filter(Boolean).join('|')||null:null,
+      tech_vig_ini:d.tech?d.tech.vigIni||null:null,
+      tech_vig_fim:d.tech?d.tech.vigFim||null:null,
       biz_pct:d.biz?d.biz.pct:null,
       biz_pol:d.biz?d.biz.pol||null:null,
-      biz_vig:d.biz?[d.biz.vigIni,d.biz.vigFim].filter(Boolean).join('|')||null:null,
+      biz_vig_ini:d.biz?d.biz.vigIni||null:null,
+      biz_vig_fim:d.biz?d.biz.vigFim||null:null,
     };
     let res;
     if(d._sbId){
