@@ -337,12 +337,7 @@ body.viewer-mode .edit-only{display:none!important;}
   <div class="toolbar" style="justify-content:space-between;flex-wrap:wrap">
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <input class="sb" id="src-bt" placeholder="Buscar parceiro..." oninput="rBonusTech()" style="max-width:260px">
-      <select class="sel" id="ft-bt-pol" onchange="rBonusTech()">
-        <option value="">Todas as políticas</option>
-        <option value="R$0,05/bônus">R$0,05/bônus</option>
-        <option value="PDV Linx">R$0,05 PDV Linx</option>
-        <option value="nov/25">A partir nov/25</option>
-      </select>
+
     </div>
     <button class="btn btn-p edit-only" onclick="openTechUploadModal()">↑ Upload Bônus</button>
   </div>
@@ -616,14 +611,7 @@ body.viewer-mode .edit-only{display:none!important;}
       <option value="Inativo">Inativo</option>
       <option value="Pendente">Pendente</option>
     </select>
-    <!-- Filtros extras visíveis só no modo tabular -->
-    <select class="sel" id="ft-ind-sort" onchange="rInd()" style="display:none">
-      <option value="">Ordenar por...</option>
-      <option value="parceiro">Parceiro A→Z</option>
-      <option value="cliente">Cliente A→Z</option>
-      <option value="data">Data (recente)</option>
-      <option value="status">Status</option>
-    </select>
+
   </div>
   <!-- Modo agrupado -->
   <div id="ind-groups-cont"></div>
@@ -2405,7 +2393,6 @@ function toggleModoInd(){
   document.getElementById('ind-table-cont').style.display = isTab ? 'block' : 'none';
   document.getElementById('btns-agrupado').style.display = isTab ? 'none' : 'flex';
   document.getElementById('btns-tabular').style.display = isTab ? 'flex' : 'none';
-  document.getElementById('ft-ind-sort').style.display = isTab ? '' : 'none';
   document.getElementById('btn-modo-toggle').textContent = isTab ? '⇄ Modo Agrupado' : '⇄ Modo Edição';
   document.getElementById('ind-titulo').textContent = isTab ? 'Controle de Indicações — Edição Tabular' : 'Controle de Indicações';
   document.getElementById('ind-subtitulo').textContent = isTab ? 'Edição direta nas células · Seleção em massa · Filtros combinados' : 'Clientes agrupados por parceiro — clique no grupo para expandir ou retrair';
@@ -2833,7 +2820,6 @@ rC();rB();rInd();rBonusTech();
 
 function limparFiltrosBT(){
   document.getElementById('src-bt').value='';
-  document.getElementById('ft-bt-pol').value='';
   rBonusTech();
 }
 const linxGroupCollapsed={Linx_Enterprise:true,Linx_Retail:true};
@@ -2844,11 +2830,9 @@ function toggleLinxGroup(safe){
 function rBonusTech(){
   const ano=document.getElementById('ano-bonus-tech').value;
   const src=(document.getElementById('src-bt').value||'').toLowerCase();
-  const pol=document.getElementById('ft-bt-pol').value;
   const rows=ano==='2025'?CT25:CT26;
   let filtered=rows.filter(r=>{
     if(src&&!r.nome.toLowerCase().includes(src))return false;
-    if(pol&&!(r.pol||'').includes(pol))return false;
     return true;
   });
   const brl=(v)=>v>0?'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
