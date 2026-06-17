@@ -3506,9 +3506,13 @@ function getBizDetChk(key){
   return stored[key]||false; // true = ambos, 'email' = só email, false = nenhum
 }
 function chkIcon(key){
-  var v=getBizDetChk(key);
-  if(v===true) return '<span style="color:#16a34a;font-size:11px;margin-left:4px">✓</span>';
-  if(v==='email') return '<span style="color:#dc2626;font-size:11px;margin-left:4px">✓</span>';
+  var stored=JSON.parse(localStorage.getItem('bizDetChk')||'{}');
+  var email=stored[key]==='email'||stored[key]===true;
+  var nf=stored[key+'__nf']===true||stored[key]===true;
+  var disparo=stored[key+'__disparo']===true;
+  if(disparo) return '<span style="color:#16a34a;font-size:11px;margin-left:4px">✓</span>';
+  if(nf) return '<span style="color:#ca8a04;font-size:11px;margin-left:4px">✓</span>';
+  if(email) return '<span style="color:#dc2626;font-size:11px;margin-left:4px">✓</span>';
   return '';
 }
 function renderTechDet(parceiro,mesIdx,itens){
@@ -3668,9 +3672,9 @@ function atualizarCorChk(){
   var email=document.getElementById('chk-email').checked;
   var nf=document.getElementById('chk-nf').checked;
   var disparo=document.getElementById('chk-disparo').checked;
-  document.getElementById('chk-email').style.accentColor=email?'#dc2626':'var(--n300)';
-  document.getElementById('chk-nf').style.accentColor=nf?'#ca8a04':'var(--n300)';
-  document.getElementById('chk-disparo').style.accentColor=disparo?'#16a34a':'var(--n300)';
+  document.getElementById('chk-email').style.accentColor=email?'#dc2626':'';
+  document.getElementById('chk-nf').style.accentColor=nf?'#ca8a04':'';
+  document.getElementById('chk-disparo').style.accentColor=disparo?'#16a34a':'';
 }
 
 // Inicializa: UI local apenas — dados carregados após login
