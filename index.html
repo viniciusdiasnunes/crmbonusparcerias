@@ -2945,12 +2945,28 @@ function rBonusTech(){
   html+=`<tr class="sum-row"><td>Total</td><td></td>${totals.map(v=>v>0?`<td style="text-align:right">${brl(v)}</td>`:'<td style="text-align:right">—</td>').join('')}<td style="text-align:right">${brl(grandTotal)}</td></tr>`;
   document.getElementById('tb-bonus-tech').innerHTML=html||`<tr><td colspan="15"><div class="em">Nenhum dado encontrado</div></td></tr>`;
 
-  // Stats
+  // Stats — grupos Linx contam como 1 parceiro cada
   var totalPago=totals.reduce(function(s,v){return s+v;},0);
-  var comApuracao=filtered.filter(function(r){return r.vals.reduce(function(s,v){return s+(v||0);},0)>0;}).length;
+  var linxNomesFlat=Object.values(LINX_GROUPS).flat();
+  var linxGruposContados=new Set();
+  var numParceiros=0;
+  var comApuracao=0;
+  filtered.forEach(function(r){
+    var grupo=Object.keys(LINX_GROUPS).find(function(g){return LINX_GROUPS[g].includes(r.nome);});
+    if(grupo){
+      if(!linxGruposContados.has(grupo)){linxGruposContados.add(grupo);numParceiros++;}
+      // com apuração: grupo conta se qualquer membro tem valor
+      if(r.vals.reduce(function(s,v){return s+(v||0);},0)>0&&!linxGruposContados.has(grupo+'__apur')){
+        linxGruposContados.add(grupo+'__apur');comApuracao++;
+      }
+    } else {
+      numParceiros++;
+      if(r.vals.reduce(function(s,v){return s+(v||0);},0)>0)comApuracao++;
+    }
+  });
   var statsEl=document.getElementById('stats-bonus-tech');
   if(statsEl)statsEl.innerHTML=`
-    <div class="sc"><div class="sl">Parceiros</div><div class="sv">${filtered.length}</div></div>
+    <div class="sc"><div class="sl">Parceiros</div><div class="sv">${numParceiros}</div></div>
     <div class="sc"><div class="sl">Com apuração</div><div class="sv ac">${comApuracao}</div></div>
     <div class="sc"><div class="sl">Total pago</div><div class="sv ac sm">${brl(totalPago)}</div></div>`;
 
