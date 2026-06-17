@@ -1886,7 +1886,8 @@ function abrirDetalheAdim(parceiro, mesIdx){
   _bizDetKey=parceiro+'__'+mesIdx+'__biz';
   var _chkValBiz=getBizDetChk(_bizDetKey);
   document.getElementById('chk-email').checked=(_chkValBiz===true||_chkValBiz==='email');
-  document.getElementById('chk-nf').checked=(_chkValBiz===true);
+  document.getElementById('chk-nf').checked=(_chkValBiz===true||(JSON.parse(localStorage.getItem('bizDetChk')||'{}')[_bizDetKey+'__nf']===true));
+  document.getElementById('chk-disparo').checked=((JSON.parse(localStorage.getItem('bizDetChk')||'{}')[_bizDetKey+'__disparo']===true));
   atualizarCorChk();
   document.getElementById('biz-det-tbody').innerHTML=itens.map(i=>`<tr>
     <td><strong style="color:var(--n900)">${i.cliente}</strong></td>
@@ -3455,7 +3456,8 @@ async function abrirTechDet(parceiro, mesIdx){
   _bizDetKey=parceiro+'__'+mesIdx+'__tech';
   var _chkVal=getBizDetChk(_bizDetKey);
   document.getElementById('chk-email').checked=(_chkVal===true||_chkVal==='email');
-  document.getElementById('chk-nf').checked=(_chkVal===true);
+  document.getElementById('chk-nf').checked=(_chkVal===true||(JSON.parse(localStorage.getItem('bizDetChk')||'{}')[_bizDetKey+'__nf']===true));
+  document.getElementById('chk-disparo').checked=((JSON.parse(localStorage.getItem('bizDetChk')||'{}')[_bizDetKey+'__disparo']===true));
   atualizarCorChk();
   _techDetSort={col:null,dir:1};
 
@@ -3487,8 +3489,11 @@ function fecharBizDet(){
   if(_bizDetKey){
     var email=document.getElementById('chk-email').checked;
     var nf=document.getElementById('chk-nf').checked;
+    var disparo=document.getElementById('chk-disparo').checked;
     var stored=JSON.parse(localStorage.getItem('bizDetChk')||'{}');
-    stored[_bizDetKey]=(email&&nf)?true:email?'email':false;
+    stored[_bizDetKey]=(email&&nf&&disparo)?true:email?'email':false;
+    stored[_bizDetKey+'__nf']=nf;
+    stored[_bizDetKey+'__disparo']=disparo;
     localStorage.setItem('bizDetChk',JSON.stringify(stored));
     _bizDetKey=null;
     // Re-renderiza tabelas para mostrar/esconder ✓
@@ -3662,16 +3667,17 @@ async function carregarDetalhesBusinessSupabase(){
 function atualizarCorChk(){
   var email=document.getElementById('chk-email').checked;
   var nf=document.getElementById('chk-nf').checked;
-  var corEmail=email&&!nf?'#dc2626':email&&nf?'#16a34a':'var(--orange)';
-  var corNf=nf&&email?'#16a34a':'var(--orange)';
-  document.getElementById('chk-email').style.accentColor=corEmail;
-  document.getElementById('chk-nf').style.accentColor=corNf;
+  var disparo=document.getElementById('chk-disparo').checked;
+  document.getElementById('chk-email').style.accentColor=email?'#dc2626':'var(--n300)';
+  document.getElementById('chk-nf').style.accentColor=nf?'#ca8a04':'var(--n300)';
+  document.getElementById('chk-disparo').style.accentColor=disparo?'#16a34a':'var(--n300)';
 }
 
 // Inicializa: UI local apenas — dados carregados após login
 window.addEventListener('DOMContentLoaded', function(){
   document.getElementById('chk-email').checked = localStorage.getItem('chk-email')==='true';
   document.getElementById('chk-nf').checked = localStorage.getItem('chk-nf')==='true';
+  document.getElementById('chk-disparo').checked = localStorage.getItem('chk-disparo')==='true';
   atualizarCorChk();
   rC();rB();rInd();rBonusTech();
   // Restaura sessão salva — DOM garantidamente pronto aqui
@@ -4062,6 +4068,10 @@ async function confirmarImportInd(){
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:var(--n700)">
         <input type="checkbox" id="chk-nf" style="width:16px;height:16px;accent-color:var(--orange);cursor:pointer" onchange="localStorage.setItem('chk-nf',this.checked);atualizarCorChk()">
         Nota fiscal recebida
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:var(--n700)">
+        <input type="checkbox" id="chk-disparo" style="width:16px;height:16px;accent-color:var(--orange);cursor:pointer" onchange="localStorage.setItem('chk-disparo',this.checked);atualizarCorChk()">
+        Pronto para Disparo
       </label>
     </div>
   </div>
