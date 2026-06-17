@@ -306,7 +306,13 @@ body.viewer-mode .edit-only{display:none!important;}
 <!-- BÔNUS -->
 <div class="panel" id="tab-bonus">
   <div class="hr">
-    <div><div class="pt">Relatório de Bônus</div><div class="ps">Upload com múltiplos parceiros — identificação automática e cálculo por política contratual</div></div>
+    <div><div class="pt">Comissão de Integração</div><div class="ps">Histórico de comissões por parceiro — R$ por bônus gerado conforme política contratual</div></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select class="sel" id="ano-bonus-tech" onchange="rBonusTech()">
+        <option value="2026">2026</option>
+        <option value="2025">2025</option>
+      </select>
+    </div>
   </div>
   <div id="pnl-res" style="display:none">
     <div class="rc" id="res-geral"></div>
@@ -327,34 +333,24 @@ body.viewer-mode .edit-only{display:none!important;}
     </div>
   </div>
 
-  <!-- HISTÓRICO COMISSÃO DE INTEGRAÇÃO -->
-  <div class="card" style="margin-bottom:16px">
-    <div class="ct" style="display:flex;align-items:center;justify-content:space-between">
-      <span>Comissão de Integração — Histórico</span>
-      <div style="display:flex;gap:8px;align-items:center">
-        <select class="sel" id="ano-bonus-tech" onchange="rBonusTech()" style="font-size:11px;padding:5px 10px">
-          <option value="2026">2026</option>
-          <option value="2025">2025</option>
-        </select>
-        <button class="btn btn-p" class="btn btn-p edit-only" onclick="openTechUploadModal()">↑ Upload Bônus</button>
-      </div>
-    </div>
-    <div class="toolbar" style="margin-bottom:12px;flex-wrap:wrap;gap:8px">
-      <input class="sb" id="src-bt" placeholder="Buscar parceiro..." oninput="rBonusTech()" style="max-width:200px">
+  <div class="sg" id="stats-bonus-tech"></div>
+  <div class="toolbar" style="justify-content:space-between;flex-wrap:wrap">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <input class="sb" id="src-bt" placeholder="Buscar parceiro..." oninput="rBonusTech()" style="max-width:260px">
       <select class="sel" id="ft-bt-pol" onchange="rBonusTech()">
         <option value="">Todas as políticas</option>
         <option value="R$0,05/bônus">R$0,05/bônus</option>
         <option value="PDV Linx">R$0,05 PDV Linx</option>
         <option value="nov/25">A partir nov/25</option>
       </select>
-      <button class="btn btn-g" onclick="limparFiltrosBT()" style="padding:8px 12px;font-size:11px">✕ Limpar</button>
     </div>
-    <div class="tw">
-      <table>
-        <thead><tr><th>Parceiro</th><th>Política</th><th>Jan</th><th>Fev</th><th>Mar</th><th>Abr</th><th>Mai</th><th>Jun</th><th>Jul</th><th>Ago</th><th>Set</th><th>Out</th><th>Nov</th><th>Dez</th><th>Total</th></tr></thead>
-        <tbody id="tb-bonus-tech"></tbody>
-      </table>
-    </div>
+    <button class="btn btn-p edit-only" onclick="openTechUploadModal()">↑ Upload Bônus</button>
+  </div>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Parceiro</th><th>Política</th><th>Jan</th><th>Fev</th><th>Mar</th><th>Abr</th><th>Mai</th><th>Jun</th><th>Jul</th><th>Ago</th><th>Set</th><th>Out</th><th>Nov</th><th>Dez</th><th>Total</th></tr></thead>
+      <tbody id="tb-bonus-tech"></tbody>
+    </table>
   </div>
 </div><!-- /tab-bonus -->
 
@@ -2948,6 +2944,15 @@ function rBonusTech(){
   const grandTotal=totals.reduce((s,v)=>s+v,0);
   html+=`<tr class="sum-row"><td>Total</td><td></td>${totals.map(v=>v>0?`<td style="text-align:right">${brl(v)}</td>`:'<td style="text-align:right">—</td>').join('')}<td style="text-align:right">${brl(grandTotal)}</td></tr>`;
   document.getElementById('tb-bonus-tech').innerHTML=html||`<tr><td colspan="15"><div class="em">Nenhum dado encontrado</div></td></tr>`;
+
+  // Stats
+  var totalPago=totals.reduce(function(s,v){return s+v;},0);
+  var comApuracao=filtered.filter(function(r){return r.vals.reduce(function(s,v){return s+(v||0);},0)>0;}).length;
+  var statsEl=document.getElementById('stats-bonus-tech');
+  if(statsEl)statsEl.innerHTML=`
+    <div class="sc"><div class="sl">Parceiros</div><div class="sv">${filtered.length}</div></div>
+    <div class="sc"><div class="sl">Com apuração</div><div class="sv ac">${comApuracao}</div></div>
+    <div class="sc"><div class="sl">Total pago</div><div class="sv ac sm">${brl(totalPago)}</div></div>`;
 
   // Atualiza thead com ícones de ordenação
   const table=document.getElementById('tb-bonus-tech').closest('table');
