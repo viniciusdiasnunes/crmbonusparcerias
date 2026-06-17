@@ -830,10 +830,12 @@ body.viewer-mode .edit-only{display:none!important;}
         </div>
         <div id="m-tech-fields" style="display:none">
           <div class="fg" style="margin-top:8px">
-            <div class="fgrp full"><label class="fl">Política (ex: R$0,05 por bônus gerado)</label><input class="fi" id="m-tech-pol" placeholder="R$0,05 por bônus gerado via integração"></div>
             <div class="fgrp"><label class="fl">Valor por bônus (R$)</label><input class="fi" id="m-tech-val" type="number" step="0.001" placeholder="0.05"></div>
-            <div class="fgrp"><label class="fl">Vigência</label><input class="fi" id="m-tech-vig" placeholder="Se renova automaticamente"></div>
             <div class="fgrp full"><label class="fl">Observações</label><input class="fi" id="m-obs-tech" placeholder="Observações sobre este contrato..."></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px">
+            <div class="fgrp"><label class="fl">Início da vigência</label><input class="fi" id="m-tech-vig-ini" type="date"></div>
+            <div class="fgrp"><label class="fl">Fim da vigência</label><input class="fi" id="m-tech-vig-fim" type="date"></div>
           </div>
         </div>
       </div>
@@ -845,10 +847,12 @@ body.viewer-mode .edit-only{display:none!important;}
         </div>
         <div id="m-biz-fields" style="display:none">
           <div class="fg" style="margin-top:8px">
-            <div class="fgrp full"><label class="fl">Política (ex: 10% sobre receita líquida dos clientes indicados)</label><input class="fi" id="m-biz-pol" placeholder="10% sobre receita dos clientes indicados, adimplentes"></div>
             <div class="fgrp"><label class="fl">Percentual (%)</label><input class="fi" id="m-biz-pct" type="number" step="0.1" placeholder="10"></div>
-            <div class="fgrp"><label class="fl">Vigência</label><input class="fi" id="m-biz-vig" placeholder="Ex: 24 meses / se renova automaticamente"></div>
             <div class="fgrp full"><label class="fl">Observações</label><input class="fi" id="m-obs-biz" placeholder="Observações sobre este contrato..."></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px">
+            <div class="fgrp"><label class="fl">Início da vigência</label><input class="fi" id="m-biz-vig-ini" type="date"></div>
+            <div class="fgrp"><label class="fl">Fim da vigência</label><input class="fi" id="m-biz-vig-fim" type="date"></div>
           </div>
         </div>
       </div>
@@ -1319,8 +1323,8 @@ async function carregarParceirosSupabase(){
         cont:r.contato_comercial||'',
         email:r.email_financeiro||'',
         obs:r.observacoes||'',
-        tech:r.tech_val?{pol:r.tech_pol||'R$0,05/bônus',val:r.tech_val,vig:r.tech_vig||''}:null,
-        biz:r.biz_pct?{pol:r.biz_pol||'% receita',pct:r.biz_pct,vig:r.biz_vig||''}:null,
+        tech:r.tech_val?{pol:r.tech_pol||'',val:r.tech_val,vigIni:(r.tech_vig||'').split('|')[0]||'',vigFim:(r.tech_vig||'').split('|')[1]||''}:null,
+        biz:r.biz_pct?{pol:r.biz_pol||'',pct:r.biz_pct,vigIni:(r.biz_vig||'').split('|')[0]||'',vigFim:(r.biz_vig||'').split('|')[1]||''}:null,
         _sbId:r.id,
       }));
       P.splice(0,P.length,...remotos);
@@ -1346,11 +1350,11 @@ async function salvarSupabase(d){
       email_financeiro:d.email||null,
       observacoes:d.obs||null,
       tech_val:d.tech?d.tech.val:null,
-      tech_pol:d.tech?d.tech.pol:null,
-      tech_vig:d.tech?d.tech.vig:null,
+      tech_pol:d.tech?d.tech.pol||null:null,
+      tech_vig:d.tech?[d.tech.vigIni,d.tech.vigFim].filter(Boolean).join('|')||null:null,
       biz_pct:d.biz?d.biz.pct:null,
-      biz_pol:d.biz?d.biz.pol:null,
-      biz_vig:d.biz?d.biz.vig:null,
+      biz_pol:d.biz?d.biz.pol||null:null,
+      biz_vig:d.biz?[d.biz.vigIni,d.biz.vigFim].filter(Boolean).join('|')||null:null,
     };
     let res;
     if(d._sbId){
@@ -1708,7 +1712,7 @@ function openDrawer(id){
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--n900);margin-bottom:6px;display:flex;align-items:center;gap:6px"><span class="badge b-tech">Integrações</span> Comissão por Bônus</div>
       <div style="font-size:12px;color:var(--n700);margin-bottom:4px">${p.tech.pol||'—'}</div>
       ${p.tech.val?`<div style="font-size:11px;color:var(--n500)">Valor: <strong style="color:var(--n900)">R$ ${p.tech.val}/bônus</strong></div>`:''}
-      ${p.tech.vig?`<div style="font-size:11px;color:var(--n500);margin-top:2px">Vigência: ${p.tech.vig}</div>`:''}
+      ${p.tech.vigIni||p.tech.vigFim?`<div style="font-size:11px;color:var(--n500);margin-top:2px">Vigência: ${[p.tech.vigIni,p.tech.vigFim].filter(Boolean).join(' → ')}</div>`:''}
     </div>`;
   }
   if(p.biz){
@@ -1716,7 +1720,7 @@ function openDrawer(id){
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--od);margin-bottom:6px;display:flex;align-items:center;gap:6px"><span class="badge b-biz">Indicações</span> Comissão % Receita</div>
       <div style="font-size:12px;color:var(--n700);margin-bottom:4px">${p.biz.pol||'—'}</div>
       ${p.biz.pct?`<div style="font-size:11px;color:var(--n500)">Percentual: <strong style="color:var(--od)">${p.biz.pct}%</strong></div>`:''}
-      ${p.biz.vig?`<div style="font-size:11px;color:var(--n500);margin-top:2px">Vigência: ${p.biz.vig}</div>`:''}
+      ${p.biz.vigIni||p.biz.vigFim?`<div style="font-size:11px;color:var(--n500);margin-top:2px">Vigência: ${[p.biz.vigIni,p.biz.vigFim].filter(Boolean).join(' → ')}</div>`:''}
     </div>`;
   }
 
@@ -2303,7 +2307,7 @@ function toggleContrato(t){
 function openM(mode,id=null){
   eid=id;
   document.getElementById('m-title').textContent=mode==='add'?'Novo Parceiro':'Editar Parceiro';
-  const fields=['m-nome','m-cnpj','m-cont','m-tel','m-email','m-obs-tech','m-obs-biz','m-tech-pol','m-tech-val','m-tech-vig','m-biz-pol','m-biz-pct','m-biz-vig'];
+  const fields=['m-nome','m-cnpj','m-cont','m-tel','m-email','m-obs-tech','m-obs-biz','m-tech-val','m-tech-vig-ini','m-tech-vig-fim','m-biz-pct','m-biz-vig-ini','m-biz-vig-fim'];
   if(mode==='edit'&&id){
     const p=P.find(x=>x.id===id);if(!p)return;
     // Separar cont em nome e tel (formato "Nome 11 99999-9999")
@@ -2321,11 +2325,11 @@ function openM(mode,id=null){
     const techOn=!!p.tech;
     document.getElementById('m-tech-on').checked=techOn;
     document.getElementById('m-tech-fields').style.display=techOn?'grid':'none';
-    if(p.tech){document.getElementById('m-tech-pol').value=p.tech.pol||'';document.getElementById('m-tech-val').value=p.tech.val||'';document.getElementById('m-tech-vig').value=p.tech.vig||'';}
+    if(p.tech){document.getElementById('m-tech-val').value=p.tech.val||'';document.getElementById('m-tech-vig-ini').value=p.tech.vigIni||'';document.getElementById('m-tech-vig-fim').value=p.tech.vigFim||'';}
     const bizOn=!!p.biz;
     document.getElementById('m-biz-on').checked=bizOn;
     document.getElementById('m-biz-fields').style.display=bizOn?'grid':'none';
-    if(p.biz){document.getElementById('m-biz-pol').value=p.biz.pol||'';document.getElementById('m-biz-pct').value=p.biz.pct||'';document.getElementById('m-biz-vig').value=p.biz.vig||'';}
+    if(p.biz){document.getElementById('m-biz-pct').value=p.biz.pct||'';document.getElementById('m-biz-vig-ini').value=p.biz.vigIni||'';document.getElementById('m-biz-vig-fim').value=p.biz.vigFim||'';}
   } else {
     fields.forEach(f=>document.getElementById(f).value='');
     document.getElementById('m-status').value='Assinado';
@@ -2348,8 +2352,8 @@ async function salvar(){
     prod:'',cont:contVal,
     email:document.getElementById('m-email').value,obs:document.getElementById('m-obs-tech').value||document.getElementById('m-obs-biz').value,
     obstech:document.getElementById('m-obs-tech').value,obsbiz:document.getElementById('m-obs-biz').value,
-    tech:techOn?{pol:document.getElementById('m-tech-pol').value,val:parseFloat(document.getElementById('m-tech-val').value)||0.05,vig:document.getElementById('m-tech-vig').value}:null,
-    biz:bizOn?{pol:document.getElementById('m-biz-pol').value,pct:parseFloat(document.getElementById('m-biz-pct').value)||10,vig:document.getElementById('m-biz-vig').value}:null,
+    tech:techOn?{pol:'',val:parseFloat(document.getElementById('m-tech-val').value)||0.05,vigIni:document.getElementById('m-tech-vig-ini').value,vigFim:document.getElementById('m-tech-vig-fim').value}:null,
+    biz:bizOn?{pol:'',pct:parseFloat(document.getElementById('m-biz-pct').value)||10,vigIni:document.getElementById('m-biz-vig-ini').value,vigFim:document.getElementById('m-biz-vig-fim').value}:null,
   };
   if(eid){
     const idx=P.findIndex(p=>p.id===eid);
