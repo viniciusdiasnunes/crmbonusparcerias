@@ -35,7 +35,7 @@ thead{background:var(--n900);}
 th{padding:10px 13px;text-align:center;font-weight:700;color:var(--white);white-space:nowrap;font-size:10px;letter-spacing:0.6px;text-transform:uppercase;}
 td{padding:9px 13px;border-bottom:1px solid var(--n100);color:var(--n700);vertical-align:middle;}
 tr:last-child td{border-bottom:none;}
-tr:hover td{background:var(--o50);}
+tr:hover td{}
 .sum-row td{font-weight:700;background:var(--ol)!important;color:var(--n900);}
 /* BADGES */
 .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;letter-spacing:0.2px;}
@@ -124,13 +124,13 @@ tr:hover td{background:var(--o50);}
 .pt-none{font-size:11px;color:var(--n300);font-style:italic;}
 /* PARTNER CARDS */
 .pcard{background:var(--white);border:1.5px solid var(--bdr);border-radius:12px;padding:16px;cursor:pointer;transition:all .15s;outline:none;}
-.pcard:hover{border-color:var(--orange);box-shadow:0 4px 16px rgba(255,165,0,.12);transform:translateY(-1px);}
+.pcard:hover{}
 .pcard:focus-visible{border-color:var(--orange);box-shadow:0 0 0 3px rgba(255,165,0,.25);}
 
 .ind-group{border:none;border-top:1px solid var(--n100);margin-bottom:0;overflow:hidden;}
 .ind-group:first-child{border-top:none;}
 .ind-group-header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--white);border-bottom:none;cursor:pointer;user-select:none;transition:background .15s;}
-.ind-group-header:hover{background:var(--o50);}
+.ind-group-header:hover{}
 .ind-group-name{font-size:13px;font-weight:700;color:var(--n900);flex:1;}
 .ind-group-razao{font-size:10px;color:var(--n300);font-weight:400;margin-top:2px;}
 .ind-group-meta{display:flex;gap:6px;align-items:center;}
@@ -143,7 +143,7 @@ th[onclick]{transition:background .15s;}
 .ind-group table{border-radius:0;border:none;}
 .ind-group thead{background:var(--ol);}
 .ind-group th{color:var(--od);font-size:10px;}
-.ind-group tr:hover td{background:var(--o50);}
+.ind-group tr:hover td{}
 .ind-group-footer{display:flex;justify-content:space-between;align-items:center;padding:7px 14px;background:var(--o50);border-top:1px solid var(--bdr);font-size:11px;}
 .ind-group-footer strong{color:var(--od);}
 
@@ -1162,7 +1162,7 @@ function rUsuarios(){
     var esc=escHtml(email);
     var btnRedef='<button class="ab" title="Redefinir senha" onclick="event.stopPropagation();openRedefSenhaModal(\''+esc+'\')">🔑</button>';
     var btnRem=isMe?'':'<button class="ab" title="Remover usuário" style="color:#f87171" onclick="event.stopPropagation();removerUsuario(\''+esc+'\')">✕</button>';
-    return '<div style="padding:12px 16px;display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:16px;'+borderTop+';cursor:pointer;transition:background .15s" onclick="openEditarUsuarioModal(\''+esc+'\')" onmouseover="this.style.background=\'#FFFBF0\'" onmouseout="this.style.background=\'\'">'  
+    return '<div style="padding:12px 16px;display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:16px;'+borderTop+';cursor:pointer;transition:background .15s" onclick="openEditarUsuarioModal(\''+esc+'\')">'  
       +'<div style="min-width:0">'
       +'<div style="font-size:13px;font-weight:700;color:var(--n900)">'+escHtml(nome)+'</div>'
       +'<div style="font-size:10px;color:var(--n300);margin-top:2px">'+esc+voce+'</div>'
