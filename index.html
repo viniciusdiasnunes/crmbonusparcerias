@@ -127,13 +127,14 @@ tr:hover td{background:var(--o50);}
 .pcard:hover{border-color:var(--orange);box-shadow:0 4px 16px rgba(255,165,0,.12);transform:translateY(-1px);}
 .pcard:focus-visible{border-color:var(--orange);box-shadow:0 0 0 3px rgba(255,165,0,.25);}
 
-.ind-group{border:1.5px solid var(--bdr);border-radius:var(--r);margin-bottom:10px;overflow:hidden;}
-.ind-group-header{display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--n50);border-bottom:1.5px solid var(--bdr);cursor:pointer;user-select:none;transition:background .15s;}
-.ind-group-header:hover{background:var(--ol);}
+.ind-group{border:none;border-top:1px solid var(--n100);margin-bottom:0;overflow:hidden;}
+.ind-group:first-child{border-top:none;}
+.ind-group-header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--white);border-bottom:none;cursor:pointer;user-select:none;transition:background .15s;}
+.ind-group-header:hover{background:var(--o50);}
 .ind-group-chevron{color:var(--orange);font-size:13px;transition:transform .2s;display:inline-block;min-width:14px;}
 .ind-group-chevron.open{transform:rotate(90deg);}
 .ind-group-name{font-size:13px;font-weight:700;color:var(--n900);flex:1;}
-.ind-group-razao{font-size:10px;color:var(--n500);font-weight:400;}
+.ind-group-razao{font-size:10px;color:var(--n300);font-weight:400;margin-top:2px;}
 .ind-group-meta{display:flex;gap:6px;align-items:center;}
 .ind-group-count{background:var(--orange);color:var(--n900);padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;}
 .ind-group-ativos{background:#D4EDDA;color:#1A6B35;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:700;}
@@ -2528,16 +2529,17 @@ function renderIndAgrupado(f, searchActive){
   if(!f.length){ cont.innerHTML='<div class="em">Nenhuma indicação encontrada</div>'; return; }
   const grupos = {};
   f.forEach(i=>{ if(!grupos[i.parceiro])grupos[i.parceiro]={razao:i.razao,cnpjParc:i.cnpjParc,items:[]}; grupos[i.parceiro].items.push(i); });
-  cont.innerHTML = Object.entries(grupos).sort((a,b)=>a[0].localeCompare(b[0])).map(([parceiro,g])=>{
+  const gruposHtml = Object.entries(grupos).sort((a,b)=>a[0].localeCompare(b[0])).map(([parceiro,g])=>{
     const safe = parceiro.replace(/[^a-zA-Z0-9]/g,'_');
     const isOpen = searchActive || indOpenGroups.has(parceiro);
     return`<div class="ind-group">
       <div class="ind-group-header" onclick="toggleIndGroup('${parceiro.replace(/'/g,"\\'")}')">
         <span class="ind-group-chevron${isOpen?' open':''}" id="indg-chev-${safe}">▶</span>
-        <div style="flex:1">
+        <div style="flex:1;min-width:0">
           <div class="ind-group-name">${parceiro}</div>
           ${g.razao?`<div class="ind-group-razao">${g.razao}${g.cnpjParc?' · '+g.cnpjParc:''}</div>`:''}
         </div>
+        <span class="ind-group-count">${g.items.length}</span>
       </div>
       <div class="ind-group-body${isOpen?' open':''}" id="indg-body-${safe}">
         <div class="tw" style="border-radius:0;border:none">
@@ -2558,6 +2560,7 @@ function renderIndAgrupado(f, searchActive){
       </div>
     </div>`;
   }).join('');
+  cont.innerHTML = `<div style="border:1.5px solid var(--bdr);border-radius:var(--r);overflow:hidden">${gruposHtml}</div>`;
 }
 
 function statusBadgeTabular(s){
