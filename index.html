@@ -376,20 +376,8 @@ body.viewer-mode .edit-only{display:none!important;}
   <!-- Stats usuários -->
   <div class="sg" id="stats-usuarios" style="margin-bottom:22px"></div>
 
-  <!-- Tabela de usuários -->
-  <div class="tw">
-    <table>
-      <thead>
-        <tr>
-          <th style="text-align:left">Usuário</th>
-          <th style="text-align:left">E-mail</th>
-          <th style="text-align:center">Perfil</th>
-          <th style="text-align:center;width:120px">Ações</th>
-        </tr>
-      </thead>
-      <tbody id="tb-usuarios"></tbody>
-    </table>
-  </div>
+  <!-- Lista de usuários -->
+  <div id="tb-usuarios"></div>
 </div>
 
 <!-- MODAL LOGS DE ACESSO -->
@@ -1164,28 +1152,29 @@ function rUsuarios(){
   var tb=document.getElementById('tb-usuarios');
   if(!tb)return;
   if(!entries.length){tb.innerHTML='<tr><td colspan="4"><div class="em">Nenhum usuário cadastrado.</div></td></tr>';return;}
-  tb.innerHTML=entries.map(function([email,u]){
+  var rows=entries.map(function([email,u],idx){
     var partes=email.split('@')[0].split('.');
-    var nome=partes.map(p=>p.charAt(0).toUpperCase()+p.slice(1)).join(' ');
+    var nome=partes.map(function(p){return p.charAt(0).toUpperCase()+p.slice(1);}).join(' ');
     var isMe=email===(window.CURRENT_EMAIL||'');
     var roleLabel=u.role==='admin'?'Admin':'Viewer';
     var roleCls=u.role==='admin'?'urole admin':'urole viewer';
-    return`<tr>
-      <td>
-        <div style="font-size:13px;font-weight:700;color:var(--n900)">${escHtml(nome)}</div>
-        ${isMe?'<div style="font-size:10px;color:var(--od);font-weight:700;text-transform:uppercase;letter-spacing:0.5px">Você</div>':''}
-      </td>
-      <td style="font-size:12px;color:var(--n500);font-family:monospace">${escHtml(email)}</td>
-      <td style="text-align:center"><span class="${roleCls}" style="display:inline-block">${roleLabel}</span></td>
-      <td style="text-align:center">
-        <div style="display:flex;gap:6px;justify-content:center">
-          <button class="ab" title="Editar perfil" onclick="openEditarUsuarioModal('${escHtml(email)}')">✎</button>
-          <button class="ab" title="Redefinir senha" onclick="openRedefSenhaModal('${escHtml(email)}')">🔑</button>
-          ${isMe?'':'<button class="ab" title="Remover usuário" style="color:#f87171" onclick="removerUsuario(\''+escHtml(email)+'\')">✕</button>'}
-        </div>
-      </td>
-    </tr>`;
+    var borderTop=idx>0?'border-top:1px solid var(--n100);':'';
+    var voce=isMe?' &middot; <span style="color:var(--od);font-weight:700">Você</span>':'';
+    var btnRemover=isMe?'':'<button class="ab" title="Remover usuário" style="color:#f87171" onclick="removerUsuario(\''+ escHtml(email) +'\')">✕</button>';
+    return '<div style="padding:12px 16px;display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:16px;'+borderTop+'">'
+      +'<div style="min-width:0">'
+      +'<div style="font-size:13px;font-weight:700;color:var(--n900)">'+escHtml(nome)+'</div>'
+      +'<div style="font-size:10px;color:var(--n300);margin-top:2px">'+escHtml(email)+voce+'</div>'
+      +'</div>'
+      +'<span class="'+roleCls+'" style="display:inline-block">'+roleLabel+'</span>'
+      +'<div style="display:flex;gap:4px;align-items:center">'
+      +'<button class="ab" title="Editar perfil" onclick="openEditarUsuarioModal(\''+ escHtml(email) +'\')">✎</button>'
+      +'<button class="ab" title="Redefinir senha" onclick="openRedefSenhaModal(\''+ escHtml(email) +'\')">🔑</button>'
+      +btnRemover
+      +'</div>'
+      +'</div>';
   }).join('');
+  tb.innerHTML='<div style="border:1.5px solid var(--bdr);border-radius:var(--r);overflow:hidden">'+rows+'</div>';
 }
 
 var _editandoUsuarioEmail=null;
