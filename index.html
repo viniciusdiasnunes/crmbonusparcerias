@@ -3528,14 +3528,31 @@ async function abrirTechDet(parceiro, mesIdx){
   var itens=[];
   var from=0;
   var pageSize=1000;
+  var _isWake=parceiro.toLowerCase()==='wake';
+  var _anoAtual=parseInt(document.getElementById('ano-bonus-tech').value)||new Date().getFullYear();
+  // Tenta buscar com case-insensitive usando ilike + filtro de ano
   while(true){
-    var {data,error}=await sb.from('comissoes_detalhe')
-      .select('*').eq('tipo','tech').eq('parceiro',parceiro).eq('mes',mesIdx+1)
+    var res=await sb.from('comissoes_detalhe')
+      .select('parceiro,cliente,cnpj,comissao,qtd_bonus')
+      .ilike('parceiro',parceiro)
+      .eq('tipo','tech')
+      .eq('mes',mesIdx+1)
+      .eq('ano',_anoAtual)
       .range(from,from+pageSize-1);
-    if(error||!data||!data.length)break;
-    var _isWake=parceiro.toLowerCase()==='wake';
+    // Se erro (ex: coluna qtd_bonus não existe na tabela), tenta sem ela
+    if(res.error){
+      res=await sb.from('comissoes_detalhe')
+        .select('parceiro,cliente,cnpj,comissao')
+        .ilike('parceiro',parceiro)
+        .eq('tipo','tech')
+        .eq('mes',mesIdx+1)
+        .eq('ano',_anoAtual)
+        .range(from,from+pageSize-1);
+    }
+    var data=res.data, error=res.error;
+    if(error){console.error('comissoes_detalhe error:',error.message);break;}
+    if(!data||!data.length)break;
     // Para Wake: comissão correta = qtd * 0.075 (R$0,75 × 10%)
-    // qtd_bonus é salvo direto nos novos uploads; para dados antigos, divide por 0.075
     itens=itens.concat(data.map(function(r){
       var qtdReal=(r.qtd_bonus!=null&&r.qtd_bonus>0)
         ? r.qtd_bonus
