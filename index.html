@@ -1311,11 +1311,21 @@ async function confirmarRedefSenha(){
   if(!nova){erroEl.textContent='Informe a nova senha.';return;}
   if(nova.length<6){erroEl.textContent='Senha deve ter ao menos 6 caracteres.';return;}
   if(nova!==confirm2){erroEl.textContent='As senhas não coincidem.';return;}
-  const {error}=await sb.auth.updateUser({password:nova});
-  if(error){erroEl.textContent='Erro: '+error.message;return;}
+
+  if(_redefSenhaEmail===window.CURRENT_EMAIL){
+    const {error}=await sb.auth.updateUser({password:nova});
+    if(error){erroEl.textContent='Erro: '+error.message;return;}
+  } else {
+    const {error}=await sb.rpc('admin_update_password',{
+      user_email:_redefSenhaEmail,
+      new_password:nova
+    });
+    if(error){erroEl.textContent='Erro: '+error.message;return;}
+  }
+
   closeRedefSenhaModal();
-  showSync('✓ Senha atualizada com sucesso');
-  registrarLog(window.CURRENT_EMAIL||_redefSenhaEmail,'edit','Redefiniu senha: '+(_redefSenhaEmail||''));
+  showSync('✓ Senha de '+_redefSenhaEmail+' atualizada com sucesso');
+  registrarLog(window.CURRENT_EMAIL,'edit','Redefiniu senha de: '+_redefSenhaEmail);
 }
 
 function toggleSenhaVis(inputId,btn){
