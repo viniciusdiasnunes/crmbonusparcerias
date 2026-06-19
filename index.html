@@ -3530,27 +3530,47 @@ async function abrirTechDet(parceiro, mesIdx){
   var pageSize=1000;
   var _isWake=parceiro.toLowerCase()==='wake';
   var _anoAtual=parseInt(document.getElementById('ano-bonus-tech').value)||new Date().getFullYear();
-  // Tenta buscar com case-insensitive usando ilike + filtro de ano
-  while(true){
-    var res=await sb.from('comissoes_detalhe')
-      .select('parceiro,cliente,cnpj,comissao,qtd_bonus')
-      .ilike('parceiro',parceiro)
+  // Busca simples sem paginação — eq case-sensitive, parceiro exato do banco
+  var res=await sb.from('comissoes_detalhe')
+    .select('cliente,cnpj,comissao,qtd_bonus')
+    .eq('tipo','tech')
+    .eq('parceiro',parceiro)
+    .eq('mes',mesIdx+1)
+    .eq('ano',_anoAtual);
+  // Se retornou vazio, tenta em maiúsculas (WAKE vs Wake)
+  if((!res.data||!res.data.length)&&!res.error){
+    res=await sb.from('comissoes_detalhe')
+      .select('cliente,cnpj,comissao,qtd_bonus')
       .eq('tipo','tech')
+      .eq('parceiro',parceiro.toUpperCase())
       .eq('mes',mesIdx+1)
-      .eq('ano',_anoAtual)
-      .range(from,from+pageSize-1);
-    // Se erro (ex: coluna qtd_bonus não existe na tabela), tenta sem ela
-    if(res.error){
-      res=await sb.from('comissoes_detalhe')
-        .select('parceiro,cliente,cnpj,comissao')
-        .ilike('parceiro',parceiro)
-        .eq('tipo','tech')
-        .eq('mes',mesIdx+1)
-        .eq('ano',_anoAtual)
-        .range(from,from+pageSize-1);
-    }
-    var data=res.data, error=res.error;
-    if(error){console.error('comissoes_detalhe error:',error.message);break;}
+      .eq('ano',_anoAtual);
+  }
+  // Se ainda vazio, tenta com primeira letra maiúscula
+  if((!res.data||!res.data.length)&&!res.error){
+    var parceiroTitled=parceiro.charAt(0).toUpperCase()+parceiro.slice(1).toLowerCase();
+    res=await sb.from('comissoes_detalhe')
+      .select('cliente,cnpj,comissao,qtd_bonus')
+      .eq('tipo','tech')
+      .eq('parceiro',parceiroTitled)
+      .eq('mes',mesIdx+1)
+      .eq('ano',_anoAtual);
+  }
+  // Fallback: se erro por coluna qtd_bonus inexistente, tenta sem ela
+  if(res.error){
+    res=await sb.from('comissoes_detalhe')
+      .select('cliente,cnpj,comissao')
+      .eq('tipo','tech')
+      .eq('parceiro',parceiro)
+      .eq('mes',mesIdx+1)
+      .eq('ano',_anoAtual);
+  }
+  console.log('[TechDet]',parceiro,'mes',(mesIdx+1),'ano',_anoAtual,'→',res.data?.length,'registros, erro:',res.error?.message);
+  var _allData=res.data||[];
+  // Simula loop para compatibilidade com código abaixo
+  while(true){
+    var data=_allData, error=res.error;
+    if(error){console.error('[TechDet] Erro:',error.message);break;}
     if(!data||!data.length)break;
     // Para Wake: comissão correta = qtd * 0.075 (R$0,75 × 10%)
     itens=itens.concat(data.map(function(r){
@@ -3560,8 +3580,7 @@ async function abrirTechDet(parceiro, mesIdx){
       var comissao=_isWake ? qtdReal*0.075 : (r.comissao||0);
       return{loja:r.cliente||'',cnpj:r.cnpj||'',comissao:comissao,qtd:qtdReal};
     }));
-    if(data.length<pageSize)break;
-    from+=pageSize;
+    break; // resultado completo, sem paginação
   }
   TECH_DETAIL[key]=itens;
   renderTechDet(parceiro,mesIdx,itens);
