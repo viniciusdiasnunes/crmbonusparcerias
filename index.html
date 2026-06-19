@@ -1261,7 +1261,8 @@ async function salvarUsuario(){
     if(!senha){erroEl.textContent='Informe a senha.';return;}
     if(senha.length<6){erroEl.textContent='Senha deve ter ao menos 6 caracteres.';return;}
     if(senha!==senha2){erroEl.textContent='As senhas não coincidem.';return;}
-    if(HUB_AUTH[email]){erroEl.textContent='Já existe um usuário com este e-mail.';return;}
+    var jaExiste=(window._HUB_USERS||[]).some(u=>u.email===email)||!!HUB_AUTH[email];
+    if(jaExiste){erroEl.textContent='Já existe um usuário com este e-mail.';return;}
     HUB_AUTH[email]={senha:senha, role:role};
     await sb.from('hub_users').insert({email,role});
   }
