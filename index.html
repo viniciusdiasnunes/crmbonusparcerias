@@ -3890,6 +3890,8 @@ function calcTech(rows,arq){
     // Busca o parceiro no banco para pegar o tech_val correto
     var parcObj=P.find(function(p){return p.nome===nomeParceiro&&p.tech;});
     var techVal=parcObj&&parcObj.tech?parcObj.tech.val:0.05;
+    // Wake: comissão = qtd * R$0,75 * 10% = R$0,075/bônus
+    if(nomeParceiro.toLowerCase()==='wake')techVal=0.75*0.10;
     var dt=cData?parseMesTech(r[cData]):null;
     if(!dt)return;
     var qtd=parseInt(r[cQtd])||0;
@@ -3936,7 +3938,8 @@ async function registrarTech(){
   resultado.forEach(function(r){
     var techVal=r.techVal||0.05;
     var total=r.qtd*techVal;
-    inserts.push({parceiro:r.parceiro,tipo:'tech',mes:r.mes,ano:r.ano,total:total,politica:'R$'+techVal.toFixed(2)+'/bônus',qtd_bonus:r.qtd,base_receita:0,arquivo:arq});
+    var polLabel=r.parceiro.toLowerCase()==='wake'?'R$0,75/bônus × 10%':'R$'+techVal.toFixed(2)+'/bônus';
+    inserts.push({parceiro:r.parceiro,tipo:'tech',mes:r.mes,ano:r.ano,total:total,politica:polLabel,qtd_bonus:r.qtd,base_receita:0,arquivo:arq});
     Object.keys(r.lojas).forEach(function(loja){
       var q=r.lojas[loja];
       var cnpj=(r.lojaCNPJ&&r.lojaCNPJ[loja])||'';
