@@ -1479,7 +1479,7 @@ const POL={
   'updi'               :{nome:'UPDI',                tech:{val:0.05},biz:null},
   'link web'           :{nome:'LINK WEB',            tech:{val:0.05},biz:null},
   'agile pdv'          :{nome:'AGILE PDV',           tech:{val:0.05},biz:null},
-  'wake'               :{nome:'WAKE',                tech:{val:0.05},biz:null},
+  'wake'               :{nome:'WAKE',                tech:{val:0.075},biz:null},
   'nuvemshop'          :{nome:'NUVEMSHOP',           tech:{val:0.05},biz:null},
   'nuvem shop'         :{nome:'NUVEMSHOP',           tech:{val:0.05},biz:null},
   'wizos'              :{nome:'WIZOS',               tech:{val:0.05},biz:{pct:0.1}},
@@ -3533,7 +3533,7 @@ async function abrirTechDet(parceiro, mesIdx){
       .select('*').eq('tipo','tech').eq('parceiro',parceiro).eq('mes',mesIdx+1)
       .range(from,from+pageSize-1);
     if(error||!data||!data.length)break;
-    itens=itens.concat(data.map(function(r){return{loja:r.cliente||'',cnpj:r.cnpj||'',comissao:r.comissao||0,qtd:r.comissao>0?Math.round(r.comissao/0.05):0};}));
+    var _pObj=P.find(function(p){return p.nome===parceiro&&p.tech;});var _tVal=(_pObj&&_pObj.tech&&_pObj.tech.val)?_pObj.tech.val:0.075;itens=itens.concat(data.map(function(r){return{loja:r.cliente||'',cnpj:r.cnpj||'',comissao:r.comissao||0,qtd:r.comissao>0?Math.round(r.comissao/_tVal):0};}));
     if(data.length<pageSize)break;
     from+=pageSize;
   }
