@@ -892,6 +892,20 @@ const sb = createClient(SB_URL, SB_KEY);
 // ── AUTH (Supabase Auth) ──────────────────────────────────────────
 window.ROLE=null;
 
+// Captura o link de redefinição de senha enviado por e-mail
+sb.auth.onAuthStateChange(function(event, session){
+  if(event==='PASSWORD_RECOVERY' && session){
+    var email=session.user.email;
+    _redefSenhaEmail=email;
+    document.getElementById('redef-email-label').textContent=email;
+    document.getElementById('rs-nova').value='';
+    document.getElementById('rs-confirm').value='';
+    document.getElementById('rs-erro').textContent='';
+    document.getElementById('modal-redef-senha').style.display='flex';
+    document.getElementById('login-screen').classList.add('hidden');
+  }
+});
+
 async function doLogin(){
   const email=document.getElementById('l-email').value.trim().toLowerCase();
   const pass=document.getElementById('l-pass').value;
@@ -1297,15 +1311,11 @@ async function confirmarRedefSenha(){
   if(!nova){erroEl.textContent='Informe a nova senha.';return;}
   if(nova.length<6){erroEl.textContent='Senha deve ter ao menos 6 caracteres.';return;}
   if(nova!==confirm2){erroEl.textContent='As senhas não coincidem.';return;}
-  if(_redefSenhaEmail===window.CURRENT_EMAIL){
-    const {error}=await sb.auth.updateUser({password:nova});
-    if(error){erroEl.textContent='Erro: '+error.message;return;}
-    closeRedefSenhaModal();
-    showSync('✓ Senha atualizada com sucesso');
-  } else {
-    erroEl.textContent='Só é possível redefinir a própria senha por aqui. Para outros usuários, use o painel do Supabase → Authentication → Users.';
-  }
-  registrarLog(window.CURRENT_EMAIL,'edit','Redefiniu própria senha');
+  const {error}=await sb.auth.updateUser({password:nova});
+  if(error){erroEl.textContent='Erro: '+error.message;return;}
+  closeRedefSenhaModal();
+  showSync('✓ Senha atualizada com sucesso');
+  registrarLog(window.CURRENT_EMAIL||_redefSenhaEmail,'edit','Redefiniu senha: '+(_redefSenhaEmail||''));
 }
 
 function toggleSenhaVis(inputId,btn){
