@@ -889,45 +889,44 @@ const SB_KEY = 'sb_publishable_CQu2Rb5s8OTRbEpSbu5bSw_5kXYgzsE';
 const { createClient } = supabase;
 const sb = createClient(SB_URL, SB_KEY);
 
-// ── AUTH (Supabase Auth) ──────────────────────────────────────────
+// ── AUTH LOCAL (sem Supabase Auth) ───────────────────────────────
 window.ROLE=null;
 
-// Captura o link de redefinição de senha enviado por e-mail
-sb.auth.onAuthStateChange(function(event, session){
-  if(event==='PASSWORD_RECOVERY' && session){
-    var email=session.user.email;
-    _redefSenhaEmail=email;
-    document.getElementById('redef-email-label').textContent=email;
-    document.getElementById('rs-nova').value='';
-    document.getElementById('rs-confirm').value='';
-    document.getElementById('rs-erro').textContent='';
-    document.getElementById('modal-redef-senha').style.display='flex';
-    document.getElementById('login-screen').classList.add('hidden');
-  }
-});
+// Tabela de usuários e senhas — admin pode redefinir pelo app
+var HUB_AUTH={
+  'aline.rodrigues@crmbonus.com':   {senha:'Crmbonus@2026', role:'viewer'},
+  'beatriz.souza@crmbonus.com':     {senha:'Crmbonus@2026', role:'viewer'},
+  'caroline.queiroz@crmbonus.com':  {senha:'Crmbonus@2026', role:'viewer'},
+  'eduardo.santos@crmbonus.com':    {senha:'Crmbonus@2026', role:'viewer'},
+  'gianluca.freitas@crmbonus.com':  {senha:'Crmbonus@2026', role:'viewer'},
+  'gustavo.gadotti@crmbonus.com':   {senha:'Crmbonus@2026', role:'viewer'},
+  'lucas.nery@crmbonus.com':        {senha:'Crmbonus@2026', role:'viewer'},
+  'lucas.sousa@crmbonus.com':       {senha:'Crmbonus@2026', role:'viewer'},
+  'marcelo.massaki@crmbonus.com':   {senha:'Crmbonus@2026', role:'viewer'},
+  'marcelo.quaresma@crmbonus.com':  {senha:'Crmbonus@2026', role:'viewer'},
+  'vinicius.nunes@crmbonus.com':    {senha:'PresenteIA@2026', role:'admin'}
+};
 
-async function doLogin(){
-  const email=document.getElementById('l-email').value.trim().toLowerCase();
-  const pass=document.getElementById('l-pass').value;
-  const errEl=document.getElementById('l-err');
+function _salvarAuth(){
+  localStorage.setItem('hub_auth_table', JSON.stringify(HUB_AUTH));
+}
+function _carregarAuth(){
+  var s=localStorage.getItem('hub_auth_table');
+  if(s){try{HUB_AUTH=JSON.parse(s);}catch(e){}}
+}
+_carregarAuth();
+
+function doLogin(){
+  var email=document.getElementById('l-email').value.trim().toLowerCase();
+  var pass=document.getElementById('l-pass').value;
+  var errEl=document.getElementById('l-err');
   errEl.textContent='';
   if(!email||!pass){errEl.textContent='Preencha e-mail e senha.';return;}
-  const btnEl=document.querySelector('#login-screen button');
-  if(btnEl)btnEl.disabled=true;
-  try{
-    const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
-    if(error){errEl.textContent='E-mail ou senha incorretos.';document.getElementById('l-pass').value='';return;}
-    // Aguarda sessão ser estabelecida antes de buscar role
-    await new Promise(r=>setTimeout(r,300));
-    const {data:hu,error:he}=await sb.from('hub_users').select('role').eq('email',email).single();
-    if(he||!hu){errEl.textContent='Usuário sem permissão configurada. Erro: '+(he?.message||'não encontrado');await sb.auth.signOut();return;}
-    aplicarSessao(email,hu.role);
-    registrarLog(email,'login','Login realizado');
-  }catch(e){
-    errEl.textContent='Erro de conexão. Tente novamente.';
-  }finally{
-    if(btnEl)btnEl.disabled=false;
-  }
+  var u=HUB_AUTH[email];
+  if(!u||u.senha!==pass){errEl.textContent='E-mail ou senha incorretos.';document.getElementById('l-pass').value='';return;}
+  localStorage.setItem('hub_session', JSON.stringify({email:email, ts:Date.now()}));
+  aplicarSessao(email, u.role);
+  registrarLog(email,'login','Login realizado');
 }
 
 function aplicarSessao(email,role){
@@ -936,13 +935,13 @@ function aplicarSessao(email,role){
   window.CURRENT_EMAIL=email;
   if(role!=='admin')document.body.classList.add('viewer-mode');
   else document.body.classList.remove('viewer-mode');
-  const nome=email.split('.')[0];
+  var nome=email.split('.')[0];
   document.getElementById('u-nome').textContent=nome.charAt(0).toUpperCase()+nome.slice(1);
-  const rEl=document.getElementById('u-role');
+  var rEl=document.getElementById('u-role');
   rEl.textContent=role==='admin'?'Admin':'Viewer';
   rEl.className='urole '+role;
   document.getElementById('ubadge').style.display='flex';
-  const tabLogs=document.getElementById('tab-btn-logs');
+  var tabLogs=document.getElementById('tab-btn-logs');
   if(tabLogs)tabLogs.style.display=role==='admin'?'':'none';
   carregarUsuariosSupabase();
   carregarParceirosSupabase().then(function(){buildTechMap();buildPolBiz();});
@@ -953,15 +952,15 @@ function aplicarSessao(email,role){
   carregarTechSupabase();
 }
 
-async function doLogout(){
+function doLogout(){
   if(window.CURRENT_EMAIL)registrarLog(window.CURRENT_EMAIL,'logout','Logout realizado');
-  await sb.auth.signOut();
+  localStorage.removeItem('hub_session');
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('l-email').value='';
   document.getElementById('l-pass').value='';
   document.getElementById('l-err').textContent='';
   document.getElementById('ubadge').style.display='none';
-  const tabLogs=document.getElementById('tab-btn-logs');
+  var tabLogs=document.getElementById('tab-btn-logs');
   if(tabLogs)tabLogs.style.display='none';
   document.body.classList.remove('viewer-mode');
   window.ROLE=null;
@@ -1247,44 +1246,39 @@ async function salvarUsuario(){
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){erroEl.textContent='E-mail inválido.';return;}
 
   if(_editandoUsuarioEmail){
-    // Atualiza role no hub_users
-    const {error:re}=await sb.from('hub_users').update({role}).eq('email',_editandoUsuarioEmail);
-    if(re){erroEl.textContent='Erro ao salvar: '+re.message;return;}
-    // Atualiza senha se informada — usuário atualiza a própria via updateUser
+    // Edição: atualiza role (e senha se informada)
+    if(!HUB_AUTH[_editandoUsuarioEmail]){erroEl.textContent='Usuário não encontrado.';return;}
+    HUB_AUTH[_editandoUsuarioEmail].role=role;
     if(senha||senha2){
       if(senha.length<6){erroEl.textContent='Senha deve ter ao menos 6 caracteres.';return;}
       if(senha!==senha2){erroEl.textContent='As senhas não coincidem.';return;}
-      if(_editandoUsuarioEmail===window.CURRENT_EMAIL){
-        const {error:pe}=await sb.auth.updateUser({password:senha});
-        if(pe){erroEl.textContent='Erro ao atualizar senha: '+pe.message;return;}
-      } else {
-        erroEl.textContent='Para redefinir senha de outro usuário, use o botão 🔑.';return;
-      }
+      HUB_AUTH[_editandoUsuarioEmail].senha=senha;
     }
+    // Atualiza role também no hub_users do Supabase
+    await sb.from('hub_users').update({role}).eq('email',_editandoUsuarioEmail);
   } else {
-    // Novo usuário: cria no Auth + insere em hub_users
+    // Novo usuário
     if(!senha){erroEl.textContent='Informe a senha.';return;}
     if(senha.length<6){erroEl.textContent='Senha deve ter ao menos 6 caracteres.';return;}
     if(senha!==senha2){erroEl.textContent='As senhas não coincidem.';return;}
-    const ja=(window._HUB_USERS||[]).find(u=>u.email===email);
-    if(ja){erroEl.textContent='Já existe um usuário com este e-mail.';return;}
-    // Insere no hub_users — o admin cria via painel do Supabase ou service role
-    // Aqui gravamos apenas o role; o Auth precisa ser criado pelo painel
-    const {error:ie}=await sb.from('hub_users').insert({email,role});
-    if(ie){erroEl.textContent='Erro ao salvar: '+ie.message+'. Crie o usuário também em Authentication → Users no painel do Supabase.';return;}
+    if(HUB_AUTH[email]){erroEl.textContent='Já existe um usuário com este e-mail.';return;}
+    HUB_AUTH[email]={senha:senha, role:role};
+    await sb.from('hub_users').insert({email,role});
   }
 
+  _salvarAuth();
   await carregarUsuariosSupabase();
   closeUsuarioModal();
-  showSync(_editandoUsuarioEmail?'✓ Usuário atualizado':'✓ Usuário criado — lembre de criar no Auth do Supabase');
+  showSync(_editandoUsuarioEmail?'✓ Usuário atualizado':'✓ Usuário criado');
   registrarLog(window.CURRENT_EMAIL,'edit',(_editandoUsuarioEmail?'Editou':'Criou')+' usuário: '+email);
 }
 
 async function removerUsuario(email){
   if(email===window.CURRENT_EMAIL){showSync('Não é possível remover a própria conta.',false);return;}
-  if(!confirm('Remover o usuário '+email+'?\nEsta ação remove o acesso mas não exclui do Supabase Auth.'))return;
-  const {error}=await sb.from('hub_users').delete().eq('email',email);
-  if(error){showSync('Erro ao remover: '+error.message,false);return;}
+  if(!confirm('Remover o usuário '+email+'?'))return;
+  delete HUB_AUTH[email];
+  _salvarAuth();
+  await sb.from('hub_users').delete().eq('email',email);
   await carregarUsuariosSupabase();
   showSync('✓ Usuário removido');
   registrarLog(window.CURRENT_EMAIL,'delete','Removeu usuário: '+email);
@@ -1303,7 +1297,7 @@ function closeRedefSenhaModal(){
   document.getElementById('modal-redef-senha').style.display='none';
 }
 
-async function confirmarRedefSenha(){
+function confirmarRedefSenha(){
   var nova=document.getElementById('rs-nova').value;
   var confirm2=document.getElementById('rs-confirm').value;
   var erroEl=document.getElementById('rs-erro');
@@ -1311,18 +1305,9 @@ async function confirmarRedefSenha(){
   if(!nova){erroEl.textContent='Informe a nova senha.';return;}
   if(nova.length<6){erroEl.textContent='Senha deve ter ao menos 6 caracteres.';return;}
   if(nova!==confirm2){erroEl.textContent='As senhas não coincidem.';return;}
-
-  if(_redefSenhaEmail===window.CURRENT_EMAIL){
-    const {error}=await sb.auth.updateUser({password:nova});
-    if(error){erroEl.textContent='Erro: '+error.message;return;}
-  } else {
-    const {error}=await sb.rpc('admin_update_password',{
-      user_email:_redefSenhaEmail,
-      new_password:nova
-    });
-    if(error){erroEl.textContent='Erro: '+error.message;return;}
-  }
-
+  if(!HUB_AUTH[_redefSenhaEmail]){erroEl.textContent='Usuário não encontrado.';return;}
+  HUB_AUTH[_redefSenhaEmail].senha=nova;
+  _salvarAuth();
   closeRedefSenhaModal();
   showSync('✓ Senha de '+_redefSenhaEmail+' atualizada com sucesso');
   registrarLog(window.CURRENT_EMAIL,'edit','Redefiniu senha de: '+_redefSenhaEmail);
@@ -3756,14 +3741,15 @@ window.addEventListener('DOMContentLoaded', function(){
   document.getElementById('chk-disparo').checked = localStorage.getItem('chk-disparo')==='true';
   atualizarCorChk();
   rC();rB();rInd();rBonusTech();
-  // Restaura sessão via Supabase Auth
-  sb.auth.getSession().then(async function({data:{session}}){
-    if(session){
-      const email=session.user.email;
-      const {data:hu}=await sb.from('hub_users').select('role').eq('email',email).single();
-      if(hu)aplicarSessao(email,hu.role);
-    }
-  });
+  // Restaura sessão local
+  (function(){
+    var s=localStorage.getItem('hub_session');
+    if(s){try{
+      var sess=JSON.parse(s);
+      var u=HUB_AUTH[sess.email];
+      if(u)aplicarSessao(sess.email,u.role);
+    }catch(e){localStorage.removeItem('hub_session');}}
+  })();
 });
 </script>
 
