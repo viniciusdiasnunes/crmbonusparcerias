@@ -3533,7 +3533,16 @@ async function abrirTechDet(parceiro, mesIdx){
       .select('*').eq('tipo','tech').eq('parceiro',parceiro).eq('mes',mesIdx+1)
       .range(from,from+pageSize-1);
     if(error||!data||!data.length)break;
-    var _pObj=P.find(function(p){return p.nome===parceiro&&p.tech;});var _tVal=(_pObj&&_pObj.tech&&_pObj.tech.val)?_pObj.tech.val:0.075;itens=itens.concat(data.map(function(r){return{loja:r.cliente||'',cnpj:r.cnpj||'',comissao:r.comissao||0,qtd:r.comissao>0?Math.round(r.comissao/_tVal):0};}));
+    var _isWake=parceiro.toLowerCase()==='wake';
+    // Para Wake: comissão correta = qtd * 0.075 (R$0,75 × 10%)
+    // qtd_bonus é salvo direto nos novos uploads; para dados antigos, divide por 0.075
+    itens=itens.concat(data.map(function(r){
+      var qtdReal=(r.qtd_bonus!=null&&r.qtd_bonus>0)
+        ? r.qtd_bonus
+        : (_isWake&&r.comissao>0 ? Math.round(r.comissao/0.075) : (r.comissao>0?Math.round(r.comissao/0.05):0));
+      var comissao=_isWake ? qtdReal*0.075 : (r.comissao||0);
+      return{loja:r.cliente||'',cnpj:r.cnpj||'',comissao:comissao,qtd:qtdReal};
+    }));
     if(data.length<pageSize)break;
     from+=pageSize;
   }
@@ -3943,7 +3952,7 @@ async function registrarTech(){
     Object.keys(r.lojas).forEach(function(loja){
       var q=r.lojas[loja];
       var cnpj=(r.lojaCNPJ&&r.lojaCNPJ[loja])||'';
-      detalhes.push({parceiro:r.parceiro,tipo:'tech',mes:r.mes,ano:r.ano,arquivo:arq,cliente:loja,cnpj:cnpj,base_receita:0,comissao:q*techVal});
+      detalhes.push({parceiro:r.parceiro,tipo:'tech',mes:r.mes,ano:r.ano,arquivo:arq,cliente:loja,cnpj:cnpj,base_receita:0,comissao:q*techVal,qtd_bonus:q});
       var key=r.parceiro+'__'+(r.mes-1);
       if(!TECH_DETAIL[key])TECH_DETAIL[key]=[];
       TECH_DETAIL[key].push({loja:loja,cnpj:cnpj,comissao:q*techVal,qtd:q});
