@@ -141,7 +141,7 @@ th[onclick]{transition:background .15s;}
 .ind-group-body{display:none;}
 .ind-group-body.open{display:block;}
 .ind-group table{border-radius:0;border:none;}
-#tab-bonus thead, #tab-business thead{background:var(--ol)!important;}
+#tab-bonus thead, #tab-business thead{background:var(--n50)!important;border-bottom:1.5px solid var(--bdr);}
 #tab-bonus th, #tab-business th{color:var(--od)!important;}
 
 .ind-group th{color:var(--od);font-size:10px;}
@@ -3109,96 +3109,63 @@ function closeUploadModal(){document.getElementById('modal-upload').classList.re
 function exportParceiro(id){
   const p=P.find(x=>x.id===id);if(!p)return;
   const nome=p.nome;
-
-  // Find matching commission rows (fuzzy match on partner name)
   const nomeLow=nome.toLowerCase();
-  const matchName=(n)=>{
-    const nl=n.toLowerCase();
-    return nl===nomeLow||nl.includes(nomeLow)||nomeLow.includes(nl);
-  };
-
+  const matchName=(n)=>{const nl=n.toLowerCase();return nl===nomeLow||nl.includes(nomeLow)||nomeLow.includes(nl);};
   const techRows25=(CT25||[]).filter(c=>matchName(c.nome));
   const techRows26=(CT26||[]).filter(c=>matchName(c.nome));
   const bizRows25=(CB25||[]).filter(c=>matchName(c.nome));
   const bizRows26=(CB26||[]).filter(c=>matchName(c.nome));
+  const fmt=(v)=>v>0?Number(v.toFixed(2)):0;
 
-  const WB=XLSX.utils.book_new();
-  const fmt=(v)=>v>0?v:0;
-  const fmtBRL=(v)=>v>0?'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
+  // Consolidado — única aba
+  // Cabeçalho do parceiro
+  const hasTech=p.tech&&(techRows25.length||techRows26.length);
+  const hasBiz=p.biz&&(bizRows25.length||bizRows26.length);
+  const polTech=p.tech?'R$'+(p.tech.val||0.05).toFixed(2)+'/bônus':'—';
+  const polBiz=p.biz?(p.biz.pct||10)+'% sobre receita':'—';
 
-  // --- Sheet 1: Resumo ---
-  const resumoData=[
-    ['Histórico de Comissões — '+nome],
-    ['CNPJ:', p.cnpj||'—'],
-    ['Status:', p.status||'—'],
-    ['Produtos:', p.prod||'—'],
-    ['Contato:', p.cont||'—'],
-    ['Email fin.:', p.email||'—'],
-    [''],
-    ['Contratos Ativos:'],
-    p.tech?['Tech:', p.tech.pol||'—', 'R$/bônus:', p.tech.val||0.05]:[],
-    p.biz?['Business:', p.biz.pol||'—', '%:', p.biz.pct||0]:[],
-    [''],
-    ['Observações:', p.obs||'—'],
-  ].filter(r=>r.length>0);
+  const rows=[];
+  rows.push([nome]);
+  rows.push(['CNPJ', p.cnpj||'—', '', 'Status', p.status||'—']);
+  if(hasTech)rows.push(['Contrato Tech', polTech]);
+  if(hasBiz)rows.push(['Contrato Indicações', polBiz]);
+  rows.push([]);
 
-  const wsRes=XLSX.utils.aoa_to_sheet(resumoData);
-  wsRes['!cols']=[{wch:20},{wch:50},{wch:15},{wch:15}];
-  XLSX.utils.book_append_sheet(WB,wsRes,'Cadastro');
+  // Cabeçalho da tabela
+  const cols=hasTech&&hasBiz?['Mês/Ano','Integrações (Tech)','Indicações (Business)','Total']:
+             hasTech?['Mês/Ano','Integrações (Tech)','Total']:
+             ['Mês/Ano','Indicações (Business)','Total'];
+  rows.push(cols);
 
-  // --- Sheet helper: monthly table ---
-  const buildSheet=(rows25,rows26,tipo)=>{
-    if(!rows25.length&&!rows26.length)return null;
-    const header=['Parceiro','Política','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez','Total Ano'];
-    const data=[header];
-    const addRows=(rows,ano)=>{
-      if(!rows.length)return;
-      data.push([`— ${ano} —`,...Array(14).fill('')]);
-      let totals=Array(12).fill(0);
-      rows.forEach(c=>{
-        const t=c.vals.reduce((s,v)=>s+(v||0),0);
-        data.push([c.nome,c.pol,...c.vals.map(v=>fmt(v)),t]);
-        c.vals.forEach((v,i)=>totals[i]+=v||0);
-      });
-      const totAno=totals.reduce((s,v)=>s+v,0);
-      data.push(['TOTAL','', ...totals.map(v=>fmt(v)),totAno]);
-    };
-    addRows(rows25,'2025');
-    addRows(rows26,'2026');
-    const ws=XLSX.utils.aoa_to_sheet(data);
-    ws['!cols']=[{wch:22},{wch:36},...Array(13).fill({wch:12})];
-    return ws;
-  };
-
-  if(p.tech){
-    const ws=buildSheet(techRows25,techRows26,'Tech');
-    if(ws)XLSX.utils.book_append_sheet(WB,ws,'Comissão Tech');
-  }
-  if(p.biz){
-    const ws=buildSheet(bizRows25,bizRows26,'Business');
-    if(ws)XLSX.utils.book_append_sheet(WB,ws,'Comissão Business');
-  }
-
-  // --- Sheet 3: Consolidado mensal (todos os anos + tipos juntos) ---
-  const consolData=[['Mês/Ano','Tech','Business','Total']];
+  // Linhas por mês/ano
   const years=[{label:'2025',tech:techRows25,biz:bizRows25},{label:'2026',tech:techRows26,biz:bizRows26}];
+  let grandT=0,grandB=0;
   years.forEach(({label,tech,biz})=>{
     M.forEach((mes,i)=>{
       const t=tech.reduce((s,c)=>s+(c.vals[i]||0),0);
       const b=biz.reduce((s,c)=>s+(c.vals[i]||0),0);
-      if(t>0||b>0)consolData.push([`${mes}/${label}`,fmt(t),fmt(b),fmt(t+b)]);
+      if(t<=0&&b<=0)return;
+      grandT+=t;grandB+=b;
+      if(hasTech&&hasBiz)rows.push([mes+'/'+label,fmt(t),fmt(b),fmt(t+b)]);
+      else if(hasTech)rows.push([mes+'/'+label,fmt(t),fmt(t)]);
+      else rows.push([mes+'/'+label,fmt(b),fmt(b)]);
     });
   });
-  if(consolData.length>1){
-    const totalT=consolData.slice(1).reduce((s,r)=>s+(r[1]||0),0);
-    const totalB=consolData.slice(1).reduce((s,r)=>s+(r[2]||0),0);
-    consolData.push(['TOTAL GERAL',totalT,totalB,totalT+totalB]);
-    const wsC=XLSX.utils.aoa_to_sheet(consolData);
-    wsC['!cols']=[{wch:14},{wch:16},{wch:16},{wch:16}];
-    XLSX.utils.book_append_sheet(WB,wsC,'Consolidado');
-  }
 
-  const filename=`comissoes_${nome.toLowerCase().replace(/\s+/g,'_')}.xlsx`;
+  // Linha de total
+  if(hasTech&&hasBiz)rows.push(['TOTAL GERAL',fmt(grandT),fmt(grandB),fmt(grandT+grandB)]);
+  else if(hasTech)rows.push(['TOTAL GERAL',fmt(grandT),fmt(grandT)]);
+  else rows.push(['TOTAL GERAL',fmt(grandB),fmt(grandB)]);
+
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  // Larguras de coluna
+  ws['!cols']=[{wch:14},{wch:22},{wch:22},{wch:16}];
+  // Mescla título (linha 1, colunas A:D)
+  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:cols.length-1}}];
+
+  const WB=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(WB,ws,'Consolidado');
+  const filename='comissoes_'+nome.toLowerCase().replace(/\s+/g,'_')+'.xlsx';
   XLSX.writeFile(WB,filename);
 }
 </script>
