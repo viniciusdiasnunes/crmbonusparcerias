@@ -280,6 +280,7 @@ body.viewer-mode .edit-only{display:none!important;}
       <option value="za">Nome Z → A</option>
     </select>
     <button class="btn btn-p" class="btn btn-p edit-only" onclick="openM('add')">+ Novo Parceiro</button>
+    <button class="btn btn-g edit-only" onclick="openImportParcModal()" style="display:flex;align-items:center;gap:6px">⬆ Importar Planilha</button>
   </div>
 
   <div id="cards-c"></div>
@@ -705,6 +706,64 @@ body.viewer-mode .edit-only{display:none!important;}
     <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
       <button class="btn btn-g" onclick="closeMassaModal()">Cancelar</button>
       <button class="btn btn-p" onclick="aplicarMassa()">Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL IMPORTAÇÃO EM MASSA DE PARCEIROS -->
+<div id="modal-import-parc" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto" onclick="if(event.target===this)closeImportParcModal()">
+  <div style="background:#fff;border-radius:12px;padding:24px;width:100%;max-width:700px;border-top:4px solid var(--orange);max-height:90vh;overflow-y:auto" onclick="event.stopPropagation()">
+    <div class="mh">
+      <div class="mt">Importar Parceiros em Massa</div>
+      <button class="xb" onclick="closeImportParcModal()">×</button>
+    </div>
+    <div style="background:var(--o50);border:1.5px solid var(--orange);border-radius:var(--r);padding:14px;margin-bottom:18px;font-size:12px;color:var(--n700)">
+      <div style="font-weight:700;margin-bottom:8px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--od)">📋 Modelo de planilha</div>
+      <div style="margin-bottom:8px">A planilha deve ter as seguintes colunas (a ordem não importa, os nomes das colunas devem ser exatos):</div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px">
+        <thead><tr style="background:var(--n900);color:#fff">
+          <th style="padding:5px 8px;text-align:left">Coluna</th>
+          <th style="padding:5px 8px;text-align:left">Obrigatório</th>
+          <th style="padding:5px 8px;text-align:left">Valores aceitos / exemplo</th>
+        </tr></thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--n100)"><td style="padding:5px 8px"><code>nome</code></td><td style="padding:5px 8px;color:#1A6B35;font-weight:700">Sim</td><td style="padding:5px 8px">CIGAM, Wake, Presence…</td></tr>
+          <tr style="border-bottom:1px solid var(--n100)"><td style="padding:5px 8px"><code>cnpj</code></td><td style="padding:5px 8px;color:var(--n500)">Não</td><td style="padding:5px 8px">00.000.000/0001-00</td></tr>
+          <tr style="border-bottom:1px solid var(--n100)"><td style="padding:5px 8px"><code>status</code></td><td style="padding:5px 8px;color:var(--n500)">Não</td><td style="padding:5px 8px">Ativo (padrão) · Inativo · Pendente</td></tr>
+          <tr style="border-bottom:1px solid var(--n100)"><td style="padding:5px 8px"><code>tipo</code></td><td style="padding:5px 8px;color:var(--n500)">Não</td><td style="padding:5px 8px">Tech · Business · Ambos</td></tr>
+          <tr style="border-bottom:1px solid var(--n100)"><td style="padding:5px 8px"><code>contato</code></td><td style="padding:5px 8px;color:var(--n500)">Não</td><td style="padding:5px 8px">João Silva 11 99999-9999</td></tr>
+          <tr style="border-bottom:1px solid var(--n100)"><td style="padding:5px 8px"><code>email</code></td><td style="padding:5px 8px;color:var(--n500)">Não</td><td style="padding:5px 8px">financeiro@parceiro.com</td></tr>
+          <tr style="border-bottom:1px solid var(--n100)"><td style="padding:5px 8px"><code>observacoes</code></td><td style="padding:5px 8px;color:var(--n500)">Não</td><td style="padding:5px 8px">Texto livre</td></tr>
+          <tr style="border-bottom:1px solid var(--n100)"><td style="padding:5px 8px"><code>tech_val</code></td><td style="padding:5px 8px;color:var(--n500)">Não</td><td style="padding:5px 8px">0.05 (R$/bônus — preencha se tipo=Tech ou Ambos)</td></tr>
+          <tr style="border-bottom:1px solid var(--n100)"><td style="padding:5px 8px"><code>tech_vig_ini</code></td><td style="padding:5px 8px;color:var(--n500)">Não</td><td style="padding:5px 8px">2024-01-01</td></tr>
+          <tr style="border-bottom:1px solid var(--n100)"><td style="padding:5px 8px"><code>tech_vig_fim</code></td><td style="padding:5px 8px;color:var(--n500)">Não</td><td style="padding:5px 8px">2025-12-31 (deixe em branco se vigente)</td></tr>
+          <tr style="border-bottom:1px solid var(--n100)"><td style="padding:5px 8px"><code>biz_pct</code></td><td style="padding:5px 8px;color:var(--n500)">Não</td><td style="padding:5px 8px">10 (% sobre receita — preencha se tipo=Business ou Ambos)</td></tr>
+          <tr style="border-bottom:1px solid var(--n100)"><td style="padding:5px 8px"><code>biz_vig_ini</code></td><td style="padding:5px 8px;color:var(--n500)">Não</td><td style="padding:5px 8px">2024-01-01</td></tr>
+          <tr><td style="padding:5px 8px"><code>biz_vig_fim</code></td><td style="padding:5px 8px;color:var(--n500)">Não</td><td style="padding:5px 8px">2025-12-31 (deixe em branco se vigente)</td></tr>
+        </tbody>
+      </table>
+      <button class="btn btn-g" style="font-size:11px" onclick="downloadModeloParceiros()">⬇ Baixar planilha modelo (.xlsx)</button>
+    </div>
+    <div class="upload-zone" id="parc-dropzone" ondragover="event.preventDefault()" ondrop="hParcDrop(event)" onclick="document.getElementById('parc-file-input').click()">
+      <div style="font-size:28px;margin-bottom:8px">📂</div>
+      <div style="font-weight:700;font-size:13px;color:var(--n700)">Arraste o arquivo aqui ou clique para selecionar</div>
+      <div style="font-size:11px;color:var(--n300);margin-top:4px">.xlsx ou .csv</div>
+      <input type="file" id="parc-file-input" accept=".xlsx,.csv" style="display:none" onchange="hParcFile(event)">
+    </div>
+    <div id="parc-fn" style="font-size:11px;color:var(--n500);margin-top:8px;min-height:16px"></div>
+    <div id="parc-preview" style="display:none;margin-top:16px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--n500);margin-bottom:8px">Prévia — <span id="parc-preview-count"></span></div>
+      <div class="tw" style="max-height:260px;overflow-y:auto">
+        <table style="font-size:11px">
+          <thead id="parc-preview-thead"></thead>
+          <tbody id="parc-preview-tbody"></tbody>
+        </table>
+      </div>
+      <div id="parc-erros" style="margin-top:10px;font-size:11px;color:#922;display:none"></div>
+      <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">
+        <button class="btn btn-g" onclick="closeImportParcModal()">Cancelar</button>
+        <button class="btn btn-p" id="parc-confirm-btn" onclick="confirmarImportParceiros()">✓ Importar <span id="parc-confirm-count"></span> parceiros</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1949,6 +2008,159 @@ function rB(){
   rComTable(ano==='2025'?CB25:CB26,q,'tb-b','stats-b','Business');
 }
 
+
+// ── IMPORTAÇÃO EM MASSA DE PARCEIROS ─────────────────────────────────────────
+var _parcImportDados = [];
+
+function openImportParcModal(){
+  document.getElementById('modal-import-parc').style.display='flex';
+  document.getElementById('parc-fn').textContent='';
+  document.getElementById('parc-preview').style.display='none';
+  document.getElementById('parc-file-input').value='';
+  _parcImportDados=[];
+}
+function closeImportParcModal(){
+  document.getElementById('modal-import-parc').style.display='none';
+}
+function hParcDrop(e){e.preventDefault();var f=e.dataTransfer.files[0];if(f)procParcFile(f);}
+function hParcFile(e){var f=e.target.files[0];if(f)procParcFile(f);}
+
+function downloadModeloParceiros(){
+  var aoa=[
+    ['nome','cnpj','status','tipo','contato','email','observacoes','tech_val','tech_vig_ini','tech_vig_fim','biz_pct','biz_vig_ini','biz_vig_fim'],
+    ['Parceiro Exemplo','00.000.000/0001-00','Ativo','Tech','João Silva 11 99999-9999','financeiro@parceiro.com','Observação livre',0.05,'2024-01-01','2025-12-31','','',''],
+    ['Outro Parceiro','','Ativo','Business','','outro@parceiro.com','','' ,'','',10,'2024-01-01','2025-12-31'],
+    ['Parceiro Ambos','','Ativo','Ambos','Maria 21 88888-7777','ambos@parceiro.com','',0.05,'2024-01-01','','10','2024-01-01',''],
+  ];
+  var ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:20},{wch:22},{wch:10},{wch:10},{wch:28},{wch:28},{wch:24},{wch:10},{wch:14},{wch:14},{wch:8},{wch:14},{wch:14}];
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Parceiros');
+  XLSX.writeFile(wb,'modelo_parceiros.xlsx');
+}
+
+function procParcFile(file){
+  document.getElementById('parc-fn').textContent='Lendo '+file.name+'...';
+  document.getElementById('parc-preview').style.display='none';
+  _parcImportDados=[];
+  var rd=new FileReader();
+  rd.onload=function(e){
+    try{
+      var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      if(!rows.length){document.getElementById('parc-fn').textContent='⚠ Planilha vazia ou sem cabeçalho reconhecível';return;}
+      // Normaliza chaves para minúsculo sem acento
+      function normKey(k){return k.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+      rows=rows.map(function(r){
+        var n={};
+        Object.keys(r).forEach(function(k){n[normKey(k)]=r[k];});
+        return n;
+      });
+      if(!rows[0]['nome']&&!rows[0]['name']){
+        document.getElementById('parc-fn').textContent='⚠ Coluna "nome" não encontrada. Verifique o cabeçalho.';return;
+      }
+      var erros=[];
+      var validos=[];
+      var nomesExistentes=P.map(function(p){return p.nome.toLowerCase().trim();});
+      rows.forEach(function(r,idx){
+        var nome=String(r['nome']||r['name']||'').trim();
+        if(!nome){erros.push('Linha '+(idx+2)+': nome vazio — ignorada');return;}
+        var tipo=String(r['tipo']||'Tech').trim();
+        if(!['Tech','Business','Ambos'].includes(tipo))tipo='Tech';
+        var status=String(r['status']||'Ativo').trim();
+        if(!['Ativo','Inativo','Pendente'].includes(status))status='Ativo';
+        var techOn=tipo==='Tech'||tipo==='Ambos';
+        var bizOn=tipo==='Business'||tipo==='Ambos';
+        var techVal=parseFloat(r['tech_val'])||0.05;
+        var bizPct=parseFloat(r['biz_pct'])||10;
+        var duplicado=nomesExistentes.includes(nome.toLowerCase());
+        validos.push({
+          nome:nome,
+          cnpj:String(r['cnpj']||'').trim(),
+          status:status,
+          tipo:tipo,
+          cont:String(r['contato']||'').trim(),
+          email:String(r['email']||'').trim(),
+          obs:String(r['observacoes']||r['obs']||'').trim(),
+          tech:techOn?{val:techVal,vigIni:String(r['tech_vig_ini']||'').trim(),vigFim:String(r['tech_vig_fim']||'').trim()}:null,
+          biz:bizOn?{pct:bizPct,vigIni:String(r['biz_vig_ini']||'').trim(),vigFim:String(r['biz_vig_fim']||'').trim()}:null,
+          _duplicado:duplicado,
+        });
+      });
+      _parcImportDados=validos;
+      // Monta prévia
+      var thead='<tr><th>Nome</th><th>CNPJ</th><th>Status</th><th>Tipo</th><th>Contato</th><th>Tech</th><th>Biz</th><th></th></tr>';
+      var tbody=validos.map(function(p){
+        var dupBadge=p._duplicado?'<span style="background:#FCE8E8;color:#922;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700">JÁ EXISTE</span>':'';
+        return '<tr style="'+(p._duplicado?'opacity:.5':'')+'"><td style="font-weight:600">'+p.nome+'</td>'
+          +'<td style="font-size:10px;color:var(--n500)">'+( p.cnpj||'—')+'</td>'
+          +'<td>'+p.status+'</td>'
+          +'<td>'+p.tipo+'</td>'
+          +'<td style="font-size:10px;color:var(--n500)">'+( p.cont||'—')+'</td>'
+          +'<td style="font-size:10px">'+(p.tech?'R$'+p.tech.val+'/bônus':'—')+'</td>'
+          +'<td style="font-size:10px">'+(p.biz?p.biz.pct+'%':'—')+'</td>'
+          +'<td>'+dupBadge+'</td></tr>';
+      }).join('');
+      document.getElementById('parc-preview-thead').innerHTML=thead;
+      document.getElementById('parc-preview-tbody').innerHTML=tbody;
+      var novos=validos.filter(function(p){return !p._duplicado;}).length;
+      var dups=validos.filter(function(p){return p._duplicado;}).length;
+      document.getElementById('parc-preview-count').textContent=
+        validos.length+' linha(s) lida(s)'+(dups?' · '+dups+' já existente(s) (serão ignoradas)':'');
+      document.getElementById('parc-confirm-count').textContent=novos;
+      document.getElementById('parc-confirm-btn').disabled=novos===0;
+      var erroEl=document.getElementById('parc-erros');
+      if(erros.length){erroEl.style.display='block';erroEl.innerHTML='<strong>Avisos:</strong><br>'+erros.join('<br>');}
+      else{erroEl.style.display='none';}
+      document.getElementById('parc-preview').style.display='block';
+      document.getElementById('parc-fn').textContent='✓ '+file.name+' — '+rows.length+' linhas lidas';
+    }catch(err){document.getElementById('parc-fn').textContent='⚠ Erro: '+err.message;}
+  };
+  rd.readAsArrayBuffer(file);
+}
+
+async function confirmarImportParceiros(){
+  var novos=_parcImportDados.filter(function(p){return !p._duplicado;});
+  if(!novos.length)return;
+  var btn=document.getElementById('parc-confirm-btn');
+  btn.disabled=true;btn.textContent='Importando...';
+  var ok=0,erros=0;
+  for(var i=0;i<novos.length;i++){
+    var d=novos[i];
+    var payload={
+      nome:d.nome,
+      cnpj:d.cnpj||null,
+      tipo:d.tipo,
+      status:d.status,
+      contato_comercial:d.cont||null,
+      email_financeiro:d.email||null,
+      observacoes:d.obs||null,
+      tech_val:d.tech?d.tech.val:null,
+      tech_pol:null,
+      tech_vig_ini:d.tech?d.tech.vigIni||null:null,
+      tech_vig_fim:d.tech?d.tech.vigFim||null:null,
+      biz_pct:d.biz?d.biz.pct:null,
+      biz_pol:null,
+      biz_vig_ini:d.biz?d.biz.vigIni||null:null,
+      biz_vig_fim:d.biz?d.biz.vigFim||null:null,
+    };
+    var res=await sb.from('parceiros').insert(payload).select().single();
+    if(res.error){console.error('[ImportParc]',res.error.message);erros++;continue;}
+    // Adiciona ao array local P
+    var novo={id:Date.now()+i,_sbId:res.data.id,nome:d.nome,cnpj:d.cnpj,status:d.status,
+      tipo:d.tipo,cont:d.cont,email:d.email,obs:d.obs,
+      tech:d.tech,biz:d.biz};
+    P.push(novo);
+    ok++;
+  }
+  registrarLog(window.CURRENT_EMAIL,'upload','Importação em massa: '+ok+' parceiros adicionados'+(erros?' ('+erros+' erros)':''));
+  showSync('✓ '+ok+' parceiro(s) importado(s)'+(erros?' · ⚠ '+erros+' erro(s)':''));
+  closeImportParcModal();
+  rC();
+  buildTechMap();
+}
+// ─────────────────────────────────────────────────────────────────────────────
 // UPLOAD BÔNUS
 function setStep(n){[1,2,3,4].forEach(i=>{const el=document.getElementById('step'+i);el.classList.remove('active','done');if(i<n)el.classList.add('done');else if(i===n)el.classList.add('active');});}
 function hDrop(e){const f=e.dataTransfer.files[0];if(f)procFile(f);}
