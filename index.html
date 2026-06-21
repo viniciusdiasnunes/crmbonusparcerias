@@ -931,6 +931,13 @@ body.viewer-mode .edit-only{display:none!important;}
         </div>
       </div>
     </div>
+    <div style="margin-top:14px;padding:12px 14px;background:var(--n50);border:1.5px solid var(--bdr);border-radius:var(--r);display:flex;align-items:center;gap:10px">
+      <label class="toggle"><input type="checkbox" id="m-renovacao-auto"><span class="slider"></span></label>
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--n700)">Renovação automática</div>
+        <div style="font-size:10px;color:var(--n500)">Contrato renova ao vencer — sem necessidade de aditamento</div>
+      </div>
+    </div>
     <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
       <button class="btn btn-g" onclick="closeM()">Cancelar</button>
       <button class="btn btn-p" onclick="salvar()">Salvar Parceiro</button>
@@ -1397,7 +1404,7 @@ function showSync(msg, ok=true){
 // Carrega parceiros do Supabase e mescla com os locais (locais têm prioridade de exibição se Supabase vazio)
 async function carregarParceirosSupabase(){
   try{
-    const {data,error}=await sb.from('parceiros').select('id,nome,cnpj,tipo,politica,status,contato_comercial,email_financeiro,observacoes,tech_val,tech_pol,tech_vig,tech_vig_ini,tech_vig_fim,biz_pct,biz_pol,biz_vig,biz_vig_ini,biz_vig_fim').order('id');
+    const {data,error}=await sb.from('parceiros').select('id,nome,cnpj,tipo,politica,status,contato_comercial,email_financeiro,observacoes,tech_val,tech_pol,tech_vig,tech_vig_ini,tech_vig_fim,biz_pct,biz_pol,biz_vig,biz_vig_ini,biz_vig_fim,renovacao_automatica').order('id');
     if(error)throw error;
     if(data&&data.length>0){
       console.log('DEBUG parceiro[0]:', JSON.stringify(data[0]));
@@ -1412,6 +1419,7 @@ async function carregarParceirosSupabase(){
         obs:r.observacoes||'',
         tech:r.tech_val?{pol:r.tech_pol||'',val:r.tech_val,vigIni:r.tech_vig_ini||'',vigFim:r.tech_vig_fim||''}:null,
         biz:r.biz_pct?{pol:r.biz_pol||'',pct:r.biz_pct,vigIni:r.biz_vig_ini||'',vigFim:r.biz_vig_fim||''}:null,
+        renovacaoAuto:!!r.renovacao_automatica,
         _sbId:r.id,
       }));
       P.splice(0,P.length,...remotos);
@@ -1440,6 +1448,7 @@ async function salvarSupabase(d){
       tech_pol:d.tech?d.tech.pol||null:null,
       tech_vig_ini:d.tech?d.tech.vigIni||null:null,
       tech_vig_fim:d.tech?d.tech.vigFim||null:null,
+      renovacao_automatica:d.renovacaoAuto||false,
       biz_pct:d.biz?d.biz.pct:null,
       biz_pol:d.biz?d.biz.pol||null:null,
       biz_vig_ini:d.biz?d.biz.vigIni||null:null,
@@ -1716,6 +1725,33 @@ async function toggleStatusParceiro(id){
   }
 }
 
+// ── SELO DE VIGÊNCIA ──────────────────────────────────────────────
+function seloVigencia(p){
+  var hoje=new Date(); hoje.setHours(0,0,0,0);
+  var prazo30=new Date(hoje); prazo30.setDate(prazo30.getDate()+30);
+  var fins=[];
+  if(p.tech&&p.tech.vigFim)fins.push({label:'Tech',fim:new Date(p.tech.vigFim)});
+  if(p.biz&&p.biz.vigFim)fins.push({label:'Indicações',fim:new Date(p.biz.vigFim)});
+  if(!fins.length)return'';
+  var vencidos=fins.filter(function(f){return f.fim<hoje;});
+  var proximos=fins.filter(function(f){return f.fim>=hoje&&f.fim<=prazo30;});
+  if(p.renovacaoAuto){
+    // renovação automática — avisa mas não é crítico
+    if(vencidos.length)return'<span style="background:#EAF4FF;color:#1565C0;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap" title="Vigência encerrada mas renova automaticamente">↻ Renovado</span>';
+    if(proximos.length)return'<span style="background:#EAF4FF;color:#1565C0;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap" title="Vence em breve — renovação automática">↻ Renova em breve</span>';
+    return'';
+  }
+  if(vencidos.length){
+    var labs=vencidos.map(function(f){return f.label+' venceu em '+f.fim.toLocaleDateString('pt-BR');}).join(', ');
+    return'<span style="background:#FCE8E8;color:#922222;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap" title="'+labs+'">⚠ Vencido</span>';
+  }
+  if(proximos.length){
+    var dias=Math.ceil((proximos[0].fim-hoje)/(1000*60*60*24));
+    return'<span style="background:#FFF3CD;color:#856404;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap" title="Vence em '+dias+' dias">⏰ Vence em '+dias+'d</span>';
+  }
+  return'';
+}
+
 function rC(){
   const q=(document.getElementById('src-c').value||'').toLowerCase();
   const ft=document.getElementById('ft-tipo').value;
@@ -1761,7 +1797,8 @@ function rC(){
           <div style="font-size:12px;font-weight:700;color:var(--od)">${p.biz.pct}%<span style="font-weight:400;color:var(--n300);font-size:10px"> sobre receita</span></div>`
           :`<div style="font-size:10px;color:var(--n300)">—</div>`}
         </div>
-        <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-shrink:0" onclick="event.stopPropagation()">
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-shrink:0;flex-wrap:wrap" onclick="event.stopPropagation()">
+          ${seloVigencia(p)}
           <button onclick="toggleStatusParceiro(${p.id})" style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;border:none;cursor:pointer;background:${statusComp==='Ativo'?'#D4EDDA':'#FCE8E8'};color:${statusComp==='Ativo'?'#1A6B35':'#922222'}">${statusComp}</button>
           <span style="font-size:10px;color:var(--n300)">Ver →</span>
         </div>
@@ -1836,6 +1873,7 @@ function openDrawer(id){
           ${p.tech?`<span class="badge b-tech">Integrações</span>`:''}
           ${p.biz?`<span class="badge b-biz">Indicações</span>`:''}
           <span style="background:${statusColor};color:${statusTextColor};padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;border:none" onclick="toggleStatusParceiro(${p.id})">${statusComp}</span>
+          ${seloVigencia(p)}
         </div>
       </div>
 
@@ -2604,6 +2642,7 @@ function openM(mode,id=null){
     document.getElementById('m-tech-on').checked=techOn;
     document.getElementById('m-tech-fields').style.display=techOn?'grid':'none';
     if(p.tech){document.getElementById('m-tech-val').value=p.tech.val||'';document.getElementById('m-tech-vig-ini').value=p.tech.vigIni||'';document.getElementById('m-tech-vig-fim').value=p.tech.vigFim||'';}
+    document.getElementById('m-renovacao-auto').checked=!!p.renovacaoAuto;
     const bizOn=!!p.biz;
     document.getElementById('m-biz-on').checked=bizOn;
     document.getElementById('m-biz-fields').style.display=bizOn?'grid':'none';
@@ -2632,6 +2671,7 @@ async function salvar(){
     obstech:document.getElementById('m-obs-tech').value,obsbiz:document.getElementById('m-obs-biz').value,
     tech:techOn?{pol:'',val:parseFloat(document.getElementById('m-tech-val').value)||0.05,vigIni:document.getElementById('m-tech-vig-ini').value,vigFim:document.getElementById('m-tech-vig-fim').value}:null,
     biz:bizOn?{pol:'',pct:parseFloat(document.getElementById('m-biz-pct').value)||10,vigIni:document.getElementById('m-biz-vig-ini').value,vigFim:document.getElementById('m-biz-vig-fim').value}:null,
+    renovacaoAuto:document.getElementById('m-renovacao-auto').checked,
   };
   if(eid){
     const idx=P.findIndex(p=>p.id===eid);
