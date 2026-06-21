@@ -4251,8 +4251,9 @@ function calcTech(rows,arq){
     if(!dt)return;
     var qtd=parseInt(r[cQtd])||0;
     if(qtd<=0)return;
-    var loja=cLoja?String(r[cLoja]||''):'';
+    var loja=cLoja?String(r[cLoja]||'').trim():'';
     var cnpj=cCNPJ?String(r[cCNPJ]||'').trim():'';
+    if(!loja)loja='(sem loja)';
     if(loja&&cnpj)lojaCNPJ[loja]=cnpj;
     var k=nomeParceiro+'__'+(dt.mes-1)+'__'+dt.ano;
     if(!porParc[k])porParc[k]={parceiro:nomeParceiro,mes:dt.mes,ano:dt.ano,qtd:0,techVal:techVal,lojas:{}};
@@ -4308,20 +4309,34 @@ async function registrarTech(){
     if(!entry){entry={nome:r.parceiro,pol:'R$'+techVal.toFixed(2)+'/bônus',vals:[0,0,0,0,0,0,0,0,0,0,0,0]};target.push(entry);}
     entry.vals[r.mes-1]=(entry.vals[r.mes-1]||0)+total;
   });
+  // ── Fase 1: deleta registros existentes (por mes+ano+parceiro)
+  var mesesVistos=new Set();
+  inserts.forEach(function(d){mesesVistos.add(d.mes+'|'+d.ano);});
+  var parceirosNoArq=Array.from(new Set(inserts.map(function(d){return d.parceiro;})));
   try{
-    // Deleta por parceiro+mes+ano para evitar duplicatas independente do nome do arquivo
-    for(var di=0;di<inserts.length;di++){
-      var d=inserts[di];
-      await sb.from('comissoes').delete().eq('tipo','tech').eq('parceiro',d.parceiro).eq('mes',d.mes).eq('ano',d.ano);
-      await sb.from('comissoes_detalhe').delete().eq('tipo','tech').eq('parceiro',d.parceiro).eq('mes',d.mes).eq('ano',d.ano);
+    for(var mi of mesesVistos){
+      var parts=mi.split('|'); var mm=parseInt(parts[0]); var aa=parseInt(parts[1]);
+      await sb.from('comissoes').delete().eq('tipo','tech').eq('mes',mm).eq('ano',aa).in('parceiro',parceirosNoArq);
+      await sb.from('comissoes_detalhe').delete().eq('tipo','tech').eq('mes',mm).eq('ano',aa).in('parceiro',parceirosNoArq);
     }
+  }catch(e){console.warn('[Tech] Erro no delete:',e.message);}
+  // ── Fase 2: insere resumos em comissoes
+  try{
     await sb.from('comissoes').insert(inserts);
-    for(var i=0;i<detalhes.length;i+=500){
-      await sb.from('comissoes_detalhe').insert(detalhes.slice(i,i+500));
-    }
-    showSync('✓ '+inserts.length+' registros tech salvos no banco');
-    registrarLog(window.CURRENT_EMAIL,'upload','Upload bônus tech: '+arq+' ('+inserts.length+' registros)');
-  }catch(e){showSync('⚠ Erro ao salvar: '+e.message,false);}
+  }catch(e){showSync('⚠ Erro ao salvar comissoes: '+e.message,false);alert('Erro comissoes: '+e.message);return;}
+  // ── Fase 3: insere detalhes em batches (1000 por vez)
+  var detErros=[];
+  for(var i=0;i<detalhes.length;i+=1000){
+    var batch=detalhes.slice(i,i+1000);
+    var res=await sb.from('comissoes_detalhe').insert(batch);
+    if(res.error){detErros.push('batch '+(i/1000+1)+': '+res.error.message);console.error('[TechDet] Insert erro:',res.error);}
+  }
+  if(detErros.length){
+    alert('⚠ Erro ao salvar detalhes:\n'+detErros.join('\n')+'\n\nResumos foram salvos. Verifique as colunas da tabela comissoes_detalhe no Supabase.');
+  }
+  showSync('✓ '+inserts.length+' parceiros / '+detalhes.length+' detalhes salvos');
+  registrarLog(window.CURRENT_EMAIL,'upload','Upload bônus tech: '+arq+' ('+inserts.length+' parceiros, '+detalhes.length+' detalhes)');
+  Object.keys(TECH_DETAIL).forEach(function(k){delete TECH_DETAIL[k];});
   rBonusTech();
   closeTechUploadModal();
 }
