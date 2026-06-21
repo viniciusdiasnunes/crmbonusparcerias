@@ -4309,8 +4309,12 @@ async function registrarTech(){
     entry.vals[r.mes-1]=(entry.vals[r.mes-1]||0)+total;
   });
   try{
-    await sb.from('comissoes').delete().eq('tipo','tech').eq('arquivo',arq);
-    await sb.from('comissoes_detalhe').delete().eq('tipo','tech').eq('arquivo',arq);
+    // Deleta por parceiro+mes+ano para evitar duplicatas independente do nome do arquivo
+    for(var di=0;di<inserts.length;di++){
+      var d=inserts[di];
+      await sb.from('comissoes').delete().eq('tipo','tech').eq('parceiro',d.parceiro).eq('mes',d.mes).eq('ano',d.ano);
+      await sb.from('comissoes_detalhe').delete().eq('tipo','tech').eq('parceiro',d.parceiro).eq('mes',d.mes).eq('ano',d.ano);
+    }
     await sb.from('comissoes').insert(inserts);
     for(var i=0;i<detalhes.length;i+=500){
       await sb.from('comissoes_detalhe').insert(detalhes.slice(i,i+500));
