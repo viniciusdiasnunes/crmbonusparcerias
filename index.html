@@ -1598,6 +1598,7 @@ function getTipo(p){
 }
 
 function sw(t){
+  localStorage.setItem('hub_tab',t);
   document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
   const tabNames=['cadastro','indicacoes','business','bonus','logs'];
   document.querySelectorAll('.tab').forEach((el,i)=>{if(tabNames[i]===t)el.classList.add('active');});
@@ -3923,7 +3924,7 @@ window.addEventListener('DOMContentLoaded', function(){
     if(s){try{
       var sess=JSON.parse(s);
       var u=HUB_AUTH[sess.email];
-      if(u)aplicarSessao(sess.email,u.role);
+      if(u){aplicarSessao(sess.email,u.role);var _t=localStorage.getItem('hub_tab');if(_t)setTimeout(function(){sw(_t);},50);}
     }catch(e){localStorage.removeItem('hub_session');}}
   })();
 });
