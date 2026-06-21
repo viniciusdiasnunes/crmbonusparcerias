@@ -2029,14 +2029,30 @@ function downloadModeloParceiros(){
   var aoa=[
     ['nome','cnpj','status','tipo','contato','email','observacoes','tech_val','tech_vig_ini','tech_vig_fim','biz_pct','biz_vig_ini','biz_vig_fim'],
     ['Parceiro Exemplo','00.000.000/0001-00','Ativo','Tech','João Silva 11 99999-9999','financeiro@parceiro.com','Observação livre',0.05,'2024-01-01','2025-12-31','','',''],
-    ['Outro Parceiro','','Ativo','Business','','outro@parceiro.com','','' ,'','',10,'2024-01-01','2025-12-31'],
-    ['Parceiro Ambos','','Ativo','Ambos','Maria 21 88888-7777','ambos@parceiro.com','',0.05,'2024-01-01','','10','2024-01-01',''],
+    ['Outro Parceiro','','Ativo','Business','','outro@parceiro.com','','','','',10,'2024-01-01','2025-12-31'],
+    ['Parceiro Ambos','','Ativo','Ambos','Maria 21 88888-7777','ambos@parceiro.com','',0.05,'2024-01-01','',10,'2024-01-01',''],
   ];
   var ws=XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols']=[{wch:20},{wch:22},{wch:10},{wch:10},{wch:28},{wch:28},{wch:24},{wch:10},{wch:14},{wch:14},{wch:8},{wch:14},{wch:14}];
   var wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Parceiros');
   XLSX.writeFile(wb,'modelo_parceiros.xlsx');
+}
+
+function _excelCellToISO(v){
+  if(!v&&v!==0)return '';
+  // Se já for string no formato YYYY-MM-DD ou DD/MM/YYYY
+  var s=String(v).trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
+  if(/^\d{2}\/\d{2}\/\d{4}$/.test(s)){var p=s.split('/');return p[2]+'-'+p[1]+'-'+p[0];}
+  // Serial numérico do Excel (número inteiro > 1000)
+  var n=parseFloat(s);
+  if(!isNaN(n)&&n>1000){
+    var d=new Date(Math.round((n-25569)*86400000));
+    var y=d.getUTCFullYear(),m=d.getUTCMonth()+1,day=d.getUTCDate();
+    return y+'-'+(m<10?'0':'')+m+'-'+(day<10?'0':'')+day;
+  }
+  return s;
 }
 
 function procParcFile(file){
@@ -2046,9 +2062,9 @@ function procParcFile(file){
   var rd=new FileReader();
   rd.onload=function(e){
     try{
-      var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',raw:true});
       var ws=wb.Sheets[wb.SheetNames[0]];
-      var rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      var rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:true});
       if(!rows.length){document.getElementById('parc-fn').textContent='⚠ Planilha vazia ou sem cabeçalho reconhecível';return;}
       // Normaliza chaves para minúsculo sem acento
       function normKey(k){return k.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
@@ -2072,8 +2088,8 @@ function procParcFile(file){
         if(!['Ativo','Inativo','Pendente'].includes(status))status='Ativo';
         var techOn=tipo==='Tech'||tipo==='Ambos';
         var bizOn=tipo==='Business'||tipo==='Ambos';
-        var techVal=parseFloat(r['tech_val'])||0.05;
-        var bizPct=parseFloat(r['biz_pct'])||10;
+        var techVal=techOn?(parseFloat(r['tech_val'])||0.05):null;
+        var bizPct=bizOn?(parseFloat(r['biz_pct'])||10):null;
         var duplicado=nomesExistentes.includes(nome.toLowerCase());
         validos.push({
           nome:nome,
@@ -2083,8 +2099,8 @@ function procParcFile(file){
           cont:String(r['contato']||'').trim(),
           email:String(r['email']||'').trim(),
           obs:String(r['observacoes']||r['obs']||'').trim(),
-          tech:techOn?{val:techVal,vigIni:String(r['tech_vig_ini']||'').trim(),vigFim:String(r['tech_vig_fim']||'').trim()}:null,
-          biz:bizOn?{pct:bizPct,vigIni:String(r['biz_vig_ini']||'').trim(),vigFim:String(r['biz_vig_fim']||'').trim()}:null,
+          tech:techOn?{val:techVal,vigIni:_excelCellToISO(r['tech_vig_ini']),vigFim:_excelCellToISO(r['tech_vig_fim'])}:null,
+          biz:bizOn?{pct:bizPct,vigIni:_excelCellToISO(r['biz_vig_ini']),vigFim:_excelCellToISO(r['biz_vig_fim'])}:null,
           _duplicado:duplicado,
         });
       });
