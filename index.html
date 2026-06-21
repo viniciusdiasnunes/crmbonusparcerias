@@ -263,7 +263,7 @@ body.viewer-mode .edit-only{display:none!important;}
 <div class="panel active" id="tab-cadastro">
   <div class="sg" id="stats-c"></div>
   <div class="toolbar">
-    <input class="sb" id="src-c" placeholder="Buscar parceiro, CNPJ..." oninput="rC()">
+    <input class="sb" id="src-c" placeholder="Buscar parceiro, CNPJ..." oninput="rC()" style="max-width:260px;flex:0 1 260px">
     <select class="sel" id="ft-tipo" onchange="rC()">
       <option value="">Todos os tipos</option>
       <option value="Tech">Integrações (bônus)</option>
@@ -275,11 +275,17 @@ body.viewer-mode .edit-only{display:none!important;}
       <option value="Ativo">Ativo</option>
       <option value="Inativo">Inativo</option>
     </select>
+    <select class="sel" id="ft-vig" onchange="rC()">
+      <option value="">Todos os contratos</option>
+      <option value="vigente">Vigente</option>
+      <option value="vencido">Vencido</option>
+      <option value="proximo">Vence em 30 dias</option>
+    </select>
     <select class="sel" id="ft-sort-c" onchange="rC()">
       <option value="az" selected>Nome A → Z</option>
       <option value="za">Nome Z → A</option>
     </select>
-    <button class="btn btn-p" class="btn btn-p edit-only" onclick="openM('add')">+ Novo Parceiro</button>
+    <button class="btn btn-p edit-only" onclick="openM('add')">+ Novo Parceiro</button>
   </div>
 
   <div id="cards-c"></div>
@@ -1699,12 +1705,27 @@ function rC(){
   const q=(document.getElementById('src-c').value||'').toLowerCase();
   const ft=document.getElementById('ft-tipo').value;
   const fs=document.getElementById('ft-status').value;
+  const fv=document.getElementById('ft-vig').value;
+  const _hoje=new Date();_hoje.setHours(0,0,0,0);
+  const _p30=new Date(_hoje);_p30.setDate(_p30.getDate()+30);
   const f=P.filter(p=>{
     const tipo=getTipo(p);
     const statusComp=computarStatusParceiro(p);
-    return(!q||(p.nome+p.cnpj+p.email+p.cont).toLowerCase().includes(q))&&
-      (!ft||(ft==='Ambos'?tipo==='Ambos':tipo===ft||tipo==='Ambos'))&&
-      (!fs||statusComp===fs);
+    if(!(!q||(p.nome+p.cnpj+p.email+p.cont).toLowerCase().includes(q)))return false;
+    if(!(!ft||(ft==='Ambos'?tipo==='Ambos':tipo===ft||tipo==='Ambos')))return false;
+    if(!(!fs||statusComp===fs))return false;
+    if(fv){
+      var fins=[];
+      if(p.tech&&p.tech.vigFim)fins.push(new Date(p.tech.vigFim));
+      if(p.biz&&p.biz.vigFim)fins.push(new Date(p.biz.vigFim));
+      if(!fins.length)return fv==='vigente';
+      var vencido=fins.some(function(d){return d<_hoje;});
+      var proximo=fins.some(function(d){return d>=_hoje&&d<=_p30;});
+      if(fv==='vencido'&&(!vencido||p.renovacaoAuto))return false;
+      if(fv==='proximo'&&(!proximo||p.renovacaoAuto))return false;
+      if(fv==='vigente'&&(vencido||proximo)&&!p.renovacaoAuto)return false;
+    }
+    return true;
   });
   const sort=document.getElementById('ft-sort-c').value;
   if(sort==='az')f.sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
