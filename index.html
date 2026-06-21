@@ -2079,7 +2079,10 @@ function procParcFile(file){
       var erros=[];
       var validos=[];
       var nomesExistentes=P.map(function(p){return p.nome.toLowerCase().trim();});
+      console.log('[ImportParc] raw rows[0]:', JSON.stringify(rows[0]));
+      console.log('[ImportParc] keys:', Object.keys(rows[0]));
       rows.forEach(function(r,idx){
+        if(idx<3)console.log('[ImportParc] row '+idx+' raw:', JSON.stringify(r));
         var nome=String(r['nome']||r['name']||'').trim();
         if(!nome){erros.push('Linha '+(idx+2)+': nome vazio — ignorada');return;}
         var tipo=String(r['tipo']||'Tech').trim();
