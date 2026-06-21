@@ -3424,23 +3424,63 @@ function normCNPJ(v){return String(v||'').replace(/[^0-9]/g,'').padStart(14,'0')
 function fmtCNPJ(v){var n=String(v||'').replace(/[^0-9]/g,'');if(n.length!==14)return v||'—';return n.slice(0,2)+'.'+n.slice(2,5)+'.'+n.slice(5,8)+'/'+n.slice(8,12)+'-'+n.slice(12);}
 // POL_BIZ é construído dinamicamente dos parceiros cadastrados no banco
 var POL_BIZ={};
+// Parseia string de política escalonada → {pol, tipo:'lojas'|'receita', tiers, fn(base,nLojas)}
+function _parseBizPolEscalonada(polStr){
+  if(!polStr)return null;
+  var s=polStr.trim();
+  if(/loja/i.test(s)){
+    var tiers=[];
+    s.split('/').forEach(function(p){
+      p=p.trim();
+      var m=p.match(/(\d+)\+.*?=\s*([\d,\.]+)%/i);
+      if(m){tiers.push({ate:Infinity,pct:parseFloat(m[2].replace(',','.'))/100});return;}
+      m=p.match(/at[eé]\s*(\d+).*?=\s*([\d,\.]+)%/i);
+      if(m){tiers.push({ate:parseInt(m[1]),pct:parseFloat(m[2].replace(',','.'))/100});}
+    });
+    if(!tiers.length)return null;
+    tiers.sort(function(a,b){return(a.ate===Infinity?1e9:a.ate)-(b.ate===Infinity?1e9:b.ate);});
+    return{pol:'Escalonado por lojas',tipo:'lojas',tiers:tiers,
+      fn:function(base,nLojas){
+        for(var i=0;i<tiers.length;i++){if(nLojas<=tiers[i].ate)return base*tiers[i].pct;}
+        return base*tiers[tiers.length-1].pct;
+      }};
+  }
+  var linhas=s.split(/
+|\//).map(function(l){return l.trim();}).filter(Boolean);
+  var tiersRec=[];
+  linhas.forEach(function(l){
+    var m=l.match(/([\d,\.]+)%.*?(?:at[eé]|up to).*?(?:R\$\s*)?([\d\.,]+)/i);
+    if(m){tiersRec.push({ate:parseFloat(m[2].replace(/\./g,'').replace(',','.'))||0,pct:parseFloat(m[1].replace(',','.'))/100});return;}
+    m=l.match(/([\d,\.]+)%.*?(?:acima|above)/i);
+    if(m){tiersRec.push({ate:Infinity,pct:parseFloat(m[1].replace(',','.'))/100});}
+  });
+  if(tiersRec.length){
+    tiersRec.sort(function(a,b){return(a.ate===Infinity?1e9:a.ate)-(b.ate===Infinity?1e9:b.ate);});
+    return{pol:'Escalonado por receita',tipo:'receita',tiers:tiersRec,
+      fn:function(base){
+        for(var i=0;i<tiersRec.length;i++){if(base<=tiersRec[i].ate)return base*tiersRec[i].pct;}
+        return base*tiersRec[tiersRec.length-1].pct;
+      }};
+  }
+  return null;
+}
 function buildPolBiz(){
   POL_BIZ={};
   P.forEach(function(p){
     if(!p.biz)return;
     var key=p.nome.toLowerCase().trim();
-    var pct=(p.biz.pct||10)/100; // pct armazenado como 10 = 10%
-    POL_BIZ[key]={pol:Math.round(pct*100)+'% receita',pct:pct,fn:function(pctV){return function(b){return b*pctV;};}(pct)};
-    if(p.nome.toLowerCase().includes('dama')){
-      POL_BIZ['dama33']={pol:Math.round(pct*100)+'% receita',pct:pct,fn:function(pctV){return function(b){return b*pctV;};}(pct)};
-      POL_BIZ['dama 33']={pol:Math.round(pct*100)+'% receita',pct:pct,fn:function(pctV){return function(b){return b*pctV;};}(pct)};
+    var escal=_parseBizPolEscalonada(p.biz.pol||'');
+    if(escal){
+      POL_BIZ[key]=escal;
+    } else {
+      var pct=(p.biz.pct||10)/100;
+      POL_BIZ[key]={pol:Math.round(pct*100)+'% receita',tipo:'receita',fn:function(pctV){return function(b){return b*pctV;};}(pct)};
     }
-    if(p.nome.toLowerCase().includes('retail manager')){
-      POL_BIZ['alexandre cintra']={pol:Math.round(pct*100)+'% receita',pct:pct,fn:function(pctV){return function(b){return b*pctV;};}(pct)};
-    }
+    if(p.nome.toLowerCase().includes('dama')){POL_BIZ['dama33']=POL_BIZ[key];POL_BIZ['dama 33']=POL_BIZ[key];}
+    if(p.nome.toLowerCase().includes('retail manager')){POL_BIZ['alexandre cintra']=POL_BIZ[key];}
   });
-  // GBR Digital escalonado
-  POL_BIZ['gbr digital']={pol:'Escalonado',pct:0,fn:function(b){return b<=50000?b*0.05:b<=125000?b*0.075:b<=300000?b*0.085:b*0.10;}};
+  // GBR Digital escalonado por receita (legado)
+  POL_BIZ['gbr digital']={pol:'Escalonado por receita',tipo:'receita',fn:function(b){return b<=50000?b*0.05:b<=125000?b*0.075:b<=300000?b*0.085:b*0.10;}};
 }
 function procAdim(file){
   document.getElementById('adim-fn').textContent='Lendo '+file.name+'...';
@@ -3544,7 +3584,7 @@ function calcAdim(rows,arq){
     Object.keys(group.cnpjs).forEach(function(cnpj){
       if(mapaAdimTotal[cnpj]){base+=mapaAdimTotal[cnpj];encontrados.push({nome:group.cnpjs[cnpj],cnpj:cnpj,val:mapaAdimTotal[cnpj]});}
     });
-    if(base>0)resultado.push({parceiro:parceiro,pol:polBiz.pol,encontrados:encontrados,base:base,comissao:polBiz.fn(base),polFn:polBiz.fn,cnpjsGrupo:group.cnpjs});
+    if(base>0)resultado.push({parceiro:parceiro,pol:polBiz.pol,polTipo:polBiz.tipo,encontrados:encontrados,base:base,comissao:polBiz.fn(base,encontrados.length),polFn:polBiz.fn,cnpjsGrupo:group.cnpjs});
   });
   if(!resultado.length){document.getElementById('adim-fn').textContent+=' — Nenhum CNPJ indicado encontrado no relatório';return;}
   // Alerta de CNPJs duplicados encontrados no relatório
@@ -3595,12 +3635,13 @@ function registrarAdim(){
     });
 
     var polKeyMain=r.parceiro.toLowerCase().trim();
-    var polBizMain=POL_BIZ[polKeyMain]||{pol:'10% receita',fn:function(b){return b*0.10;}};
+    var polBizMain=POL_BIZ[polKeyMain]||{pol:'10% receita',tipo:'receita',fn:function(b){return b*0.10;}};
     Object.keys(porMes).forEach(function(chave){
       var parts=chave.split('_');
       var ano=parseInt(parts[0]);var mesIdx=parseInt(parts[1]);
       var base=porMes[chave].base;
-      var comissao=polBizMain.fn(base);
+      var nLojas=Object.keys(porMes[chave].cnpjs).length;
+      var comissao=polBizMain.fn(base,nLojas);
       totalCom+=comissao;
       mesesRegistrados.add((mesIdx+1)+'/'+ano);
 
@@ -3609,7 +3650,7 @@ function registrarAdim(){
       if(!entry){entry={nome:r.parceiro,pol:r.pol,vals:[0,0,0,0,0,0,0,0,0,0,0,0]};target.push(entry);}
       entry.vals[mesIdx]=(entry.vals[mesIdx]||0)+comissao;
 
-      // Detalhe clicável — salva em memória E no banco
+      // Detalhe clicável — rateio proporcional da comissão total entre clientes
       var key=r.parceiro+'__'+mesIdx;
       if(!ADIM_DETAIL[key])ADIM_DETAIL[key]=[];
       var pct=base>0?comissao/base:0;
@@ -3652,8 +3693,9 @@ function registrarAdim(){
           var mesIdx=parseInt(parts[1]);
           var base=porMes[chave].base;
           var polKeyR=r.parceiro.toLowerCase().trim();
-          var polBizR=POL_BIZ[polKeyR]||{pol:'10% receita',fn:function(b){return b*0.10;}};
-          var comissao=polBizR.fn(base);
+          var polBizR=POL_BIZ[polKeyR]||{pol:'10% receita',tipo:'receita',fn:function(b){return b*0.10;}};
+          var nLojas=Object.keys(porMes[chave].cnpjs).length;
+          var comissao=polBizR.fn(base,nLojas);
           var pct=base>0?comissao/base:0;
           inserts.push({parceiro:r.parceiro,tipo:'business',mes:mesIdx+1,ano:ano,total:comissao,politica:polBizR.pol,qtd_bonus:0,base_receita:base,arquivo:arq});
           // Detalhe por loja
