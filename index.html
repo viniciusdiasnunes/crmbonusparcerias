@@ -3524,48 +3524,50 @@ async function abrirTechDet(parceiro, mesIdx){
     return;
   }
 
-  // Busca do banco com paginação
-  var itens=[];
-  var from=0;
-  var pageSize=1000;
+  // Mapa de nomes normalizados → possíveis nomes legados no banco
+  var NOME_LEGADO_INV={
+    'linx retail — seta'    :['linx + seta','linx seta digital','Linx + Seta','Linx Seta Digital'],
+    'linx retail — seta v2' :['linx seta digital v2','Linx Seta Digital V2'],
+    'linx retail — microvix':['linx microvix','Linx Microvix'],
+    'linx retail — microvix v2':['linx microvix v2','Linx Microvix V2'],
+    'linx enterprise — millenium':['linx millenium v2','linx enterprise','Linx Enterprise','Linx Millenium V2'],
+    'linx enterprise — omni pos':['linx omni pos','linx enterprise — pos/store','Linx Omni Pos'],
+    'linx enterprise — linx pos':['linx pos','Linx Pos'],
+    'linx enterprise — linx pos v2':['linx pos v2','Linx Pos V2'],
+    'linx enterprise — store x':['linx store x','Linx Store X'],
+  };
+
   var _isWake=parceiro.toLowerCase()==='wake';
   var _anoAtual=parseInt(document.getElementById('ano-bonus-tech').value)||new Date().getFullYear();
-  // Busca simples sem paginação — eq case-sensitive, parceiro exato do banco
-  var res=await sb.from('comissoes_detalhe')
-    .select('cliente,cnpj,comissao,qtd_bonus')
-    .eq('tipo','tech')
-    .eq('parceiro',parceiro)
-    .eq('mes',mesIdx+1)
-    .eq('ano',_anoAtual);
-  // Se retornou vazio, tenta em maiúsculas (WAKE vs Wake)
-  if((!res.data||!res.data.length)&&!res.error){
+
+  // Monta lista de variantes de nome para buscar
+  var nomesParaBuscar=[parceiro];
+  var legados=NOME_LEGADO_INV[parceiro.toLowerCase().trim()];
+  if(legados)nomesParaBuscar=nomesParaBuscar.concat(legados);
+
+  var res=null;
+  // Tenta cada variante de nome até encontrar registros
+  for(var ni=0;ni<nomesParaBuscar.length;ni++){
+    var nomeTentativa=nomesParaBuscar[ni];
     res=await sb.from('comissoes_detalhe')
       .select('cliente,cnpj,comissao,qtd_bonus')
       .eq('tipo','tech')
-      .eq('parceiro',parceiro.toUpperCase())
+      .ilike('parceiro',nomeTentativa)
       .eq('mes',mesIdx+1)
       .eq('ano',_anoAtual);
-  }
-  // Se ainda vazio, tenta com primeira letra maiúscula
-  if((!res.data||!res.data.length)&&!res.error){
-    var parceiroTitled=parceiro.charAt(0).toUpperCase()+parceiro.slice(1).toLowerCase();
-    res=await sb.from('comissoes_detalhe')
-      .select('cliente,cnpj,comissao,qtd_bonus')
-      .eq('tipo','tech')
-      .eq('parceiro',parceiroTitled)
-      .eq('mes',mesIdx+1)
-      .eq('ano',_anoAtual);
+    if(res.data&&res.data.length>0)break;
   }
   // Fallback: se erro por coluna qtd_bonus inexistente, tenta sem ela
-  if(res.error){
+  if(res&&res.error){
     res=await sb.from('comissoes_detalhe')
       .select('cliente,cnpj,comissao')
       .eq('tipo','tech')
-      .eq('parceiro',parceiro)
+      .ilike('parceiro',parceiro)
       .eq('mes',mesIdx+1)
       .eq('ano',_anoAtual);
   }
   console.log('[TechDet]',parceiro,'mes',(mesIdx+1),'ano',_anoAtual,'→',res.data?.length,'registros, erro:',res.error?.message);
+  var itens=[];
   var _allData=res.data||[];
   // Simula loop para compatibilidade com código abaixo
   while(true){
@@ -3581,6 +3583,27 @@ async function abrirTechDet(parceiro, mesIdx){
       return{loja:r.cliente||'',cnpj:r.cnpj||'',comissao:comissao,qtd:qtdReal};
     }));
     break; // resultado completo, sem paginação
+  }
+  // Fallback: se comissoes_detalhe vazio, busca resumo em comissoes para mostrar ao menos o total
+  if(!itens.length){
+    var resFallback=null;
+    for(var fi=0;fi<nomesParaBuscar.length;fi++){
+      resFallback=await sb.from('comissoes')
+        .select('total,qtd_bonus,politica')
+        .eq('tipo','tech')
+        .ilike('parceiro',nomesParaBuscar[fi])
+        .eq('mes',mesIdx+1)
+        .eq('ano',_anoAtual)
+        .single();
+      if(resFallback&&resFallback.data)break;
+    }
+    if(resFallback&&resFallback.data){
+      var fb=resFallback.data;
+      var fbQtd=fb.qtd_bonus||(_isWake&&fb.total>0?Math.round(fb.total/0.075):(fb.total>0?Math.round(fb.total/0.05):0));
+      var fbCom=fb.total||0;
+      itens=[{loja:'(detalhe por loja não disponível — apenas resumo)',cnpj:'',comissao:fbCom,qtd:fbQtd}];
+      console.log('[TechDet] Fallback comissoes:',fb);
+    }
   }
   TECH_DETAIL[key]=itens;
   renderTechDet(parceiro,mesIdx,itens);
