@@ -4149,6 +4149,7 @@ function buildTechMap(){
   // Constrói a partir dos parceiros com tech no banco
   P.forEach(function(p){
     if(!p.tech)return;
+    if(p.status&&p.status!=='Ativo')return;
     var nomeLow=p.nome.toLowerCase().trim();
     TECH_POL_MAP[nomeLow]=p.nome;
     PARCEIROS_CONTRATO.push(nomeLow);
@@ -4249,6 +4250,13 @@ function calcTech(rows,arq){
     if(nomeParceiro.toLowerCase()==='wake')techVal=0.75*0.10;
     var dt=cData?parseMesTech(r[cData]):null;
     if(!dt)return;
+    // Verifica status e vigência do contrato tech
+    if(parcObj){
+      if(parcObj.status&&parcObj.status!=='Ativo')return;
+      var dtRef=new Date(dt.ano,dt.mes-1,1);
+      if(parcObj.tech.vigIni){var ini=new Date(parcObj.tech.vigIni);if(dtRef<ini)return;}
+      if(parcObj.tech.vigFim){var fim=new Date(parcObj.tech.vigFim);fim.setMonth(fim.getMonth()+1);if(dtRef>=fim)return;}
+    }
     var qtd=parseInt(r[cQtd])||0;
     if(qtd<=0)return;
     var loja=cLoja?String(r[cLoja]||'').trim():'';
