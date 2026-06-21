@@ -2041,18 +2041,21 @@ function downloadModeloParceiros(){
 
 function _excelCellToISO(v){
   if(!v&&v!==0)return '';
-  // Se já for string no formato YYYY-MM-DD ou DD/MM/YYYY
   var s=String(v).trim();
+  if(!s)return '';
+  // Strings que significam "sem fim de vigência" → retorna vazio (vigente)
+  var sl=s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  if(['indeterminado','indeterminate','vigente','aberto','indefinido',''].includes(sl))return '';
   if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
   if(/^\d{2}\/\d{2}\/\d{4}$/.test(s)){var p=s.split('/');return p[2]+'-'+p[1]+'-'+p[0];}
-  // Serial numérico do Excel (número inteiro > 1000)
+  // Serial numérico do Excel
   var n=parseFloat(s);
   if(!isNaN(n)&&n>1000){
     var d=new Date(Math.round((n-25569)*86400000));
     var y=d.getUTCFullYear(),m=d.getUTCMonth()+1,day=d.getUTCDate();
     return y+'-'+(m<10?'0':'')+m+'-'+(day<10?'0':'')+day;
   }
-  return s;
+  return ''; // valor não reconhecível → trata como sem data
 }
 
 function procParcFile(file){
@@ -2079,20 +2082,34 @@ function procParcFile(file){
       var erros=[];
       var validos=[];
       var nomesExistentes=P.map(function(p){return p.nome.toLowerCase().trim();});
-      console.log('[ImportParc] raw rows[0]:', JSON.stringify(rows[0]));
-      console.log('[ImportParc] keys:', Object.keys(rows[0]));
+      function normTipo(v){
+        var tl=String(v||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+        if(['tech','integracao','integração'].includes(tl))return 'Tech';
+        if(['business','indicacao','indicacoes','indicação','indicações','biz'].includes(tl))return 'Business';
+        if(['ambos','both'].includes(tl))return 'Ambos';
+        return null;
+      }
       rows.forEach(function(r,idx){
-        if(idx<3)console.log('[ImportParc] row '+idx+' raw:', JSON.stringify(r));
         var nome=String(r['nome']||r['name']||'').trim();
         if(!nome){erros.push('Linha '+(idx+2)+': nome vazio — ignorada');return;}
-        var tipo=String(r['tipo']||'Tech').trim();
-        if(!['Tech','Business','Ambos'].includes(tipo))tipo='Tech';
+        var tipo=normTipo(r['tipo']);
+        if(!tipo){
+          erros.push('Linha '+(idx+2)+' ('+nome+'): tipo "'+r['tipo']+'" não reconhecido — classificado como Tech');
+          tipo='Tech';
+        }
         var status=String(r['status']||'Ativo').trim();
         if(!['Ativo','Inativo','Pendente'].includes(status))status='Ativo';
         var techOn=tipo==='Tech'||tipo==='Ambos';
         var bizOn=tipo==='Business'||tipo==='Ambos';
-        var techVal=techOn?(parseFloat(r['tech_val'])||0.05):null;
-        var bizPct=bizOn?(parseFloat(r['biz_pct'])||10):null;
+        var techValRaw=r['tech_val'];
+        var techValNum=parseFloat(techValRaw);
+        var techVal=techOn?(!isNaN(techValNum)?techValNum:0.05):null;
+        var techPol=techOn?(isNaN(techValNum)&&techValRaw?String(techValRaw).trim():null):null;
+        if(techPol)techVal=null;
+        var bizPctRaw=r['biz_pct'];
+        var bizPctNum=parseFloat(bizPctRaw);
+        var bizPct=bizOn?(!isNaN(bizPctNum)?bizPctNum:null):null;
+        var bizPol=bizOn?(isNaN(bizPctNum)&&bizPctRaw?String(bizPctRaw).trim():null):null;
         var duplicado=nomesExistentes.includes(nome.toLowerCase());
         validos.push({
           nome:nome,
@@ -2102,8 +2119,8 @@ function procParcFile(file){
           cont:String(r['contato']||'').trim(),
           email:String(r['email']||'').trim(),
           obs:String(r['observacoes']||r['obs']||'').trim(),
-          tech:techOn?{val:techVal,vigIni:_excelCellToISO(r['tech_vig_ini']),vigFim:_excelCellToISO(r['tech_vig_fim'])}:null,
-          biz:bizOn?{pct:bizPct,vigIni:_excelCellToISO(r['biz_vig_ini']),vigFim:_excelCellToISO(r['biz_vig_fim'])}:null,
+          tech:techOn?{val:techVal,pol:techPol,vigIni:_excelCellToISO(r['tech_vig_ini']),vigFim:_excelCellToISO(r['tech_vig_fim'])}:null,
+          biz:bizOn?{pct:bizPct,pol:bizPol,vigIni:_excelCellToISO(r['biz_vig_ini']),vigFim:_excelCellToISO(r['biz_vig_fim'])}:null,
           _duplicado:duplicado,
         });
       });
@@ -2156,11 +2173,11 @@ async function confirmarImportParceiros(){
       email_financeiro:d.email||null,
       observacoes:d.obs||null,
       tech_val:d.tech?d.tech.val:null,
-      tech_pol:null,
+      tech_pol:d.tech?d.tech.pol||null:null,
       tech_vig_ini:d.tech?d.tech.vigIni||null:null,
       tech_vig_fim:d.tech?d.tech.vigFim||null:null,
       biz_pct:d.biz?d.biz.pct:null,
-      biz_pol:null,
+      biz_pol:d.biz?d.biz.pol||null:null,
       biz_vig_ini:d.biz?d.biz.vigIni||null:null,
       biz_vig_fim:d.biz?d.biz.vigFim||null:null,
     };
