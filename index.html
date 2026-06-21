@@ -3445,8 +3445,7 @@ function _parseBizPolEscalonada(polStr){
         return base*tiers[tiers.length-1].pct;
       }};
   }
-  var linhas=s.split(/
-|\//).map(function(l){return l.trim();}).filter(Boolean);
+  var linhas=s.split(/\n|\//).map(function(l){return l.trim();}).filter(Boolean);
   var tiersRec=[];
   linhas.forEach(function(l){
     var m=l.match(/([\d,\.]+)%.*?(?:at[eé]|up to).*?(?:R\$\s*)?([\d\.,]+)/i);
