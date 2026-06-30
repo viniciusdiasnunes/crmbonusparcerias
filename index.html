@@ -2008,7 +2008,9 @@ function abrirClientesIndicados(parceiro, evt){
 function rB(){
   const ano=document.getElementById('ano-biz').value;
   const q=(document.getElementById('src-b').value||'').toLowerCase();
-  rComTable(ano==='2025'?CB25:CB26,q,'tb-b','stats-b','Business');
+  // Data System: comissão calculada via Adimplência mas exibida na aba de Integração, não aqui
+  const dados=(ano==='2025'?CB25:CB26).filter(c=>(c.nome||'').toUpperCase()!=='DATA SYSTEM');
+  rComTable(dados,q,'tb-b','stats-b','Business');
 }
 
 
@@ -3209,6 +3211,28 @@ function hAdimDrop(e){var f=e.dataTransfer.files[0];if(f)procAdim(f);}
 function hAdimFile(e){var f=e.target.files[0];if(f)procAdim(f);}
 function normCNPJ(v){return String(v||'').replace(/[^0-9]/g,'').padStart(14,'0');}
 function fmtCNPJ(v){var n=String(v||'').replace(/[^0-9]/g,'');if(n.length!==14)return v||'—';return n.slice(0,2)+'.'+n.slice(2,5)+'.'+n.slice(5,8)+'/'+n.slice(8,12)+'-'+n.slice(12);}
+// ── DATA SYSTEM: 5% da fatura paga, só para CNPJs que geraram bônus no mês ANTERIOR ao pagamento.
+// Busca no comissoes_detalhe (tipo='tech') os CNPJs/mês em que a Data System gerou bônus, e o
+// nome da loja (para exibir nos detalhes em vez do CNPJ puro).
+async function fetchDSBonusCnpjMes(){
+  var set={};var nomes={};
+  try{
+    var resp=await sb.from('comissoes_detalhe').select('cnpj,mes,ano,cliente').eq('parceiro','DATA SYSTEM').eq('tipo','tech');
+    if(!resp.error&&resp.data)resp.data.forEach(function(d){
+      if(!d.cnpj)return;
+      var c=normCNPJ(d.cnpj);
+      set[c+'_'+(d.mes-1)+'_'+d.ano]=true; // mesIdx 0-based, igual à chave do mapaAdimPorMes
+      if(d.cliente)nomes[c]=d.cliente;
+    });
+  }catch(e){console.warn('[DataSystem] erro ao buscar bônus p/ cruzamento:',e.message);}
+  return{set:set,nomes:nomes};
+}
+// Dado um cnpj e uma chave 'ano_mesIdx' (mês do pagamento), checa se houve bônus DS no mês ANTERIOR
+function dsQualificaMesAnterior(dsBonusSet,cnpj,chave){
+  var p=chave.split('_');var ano=parseInt(p[0]),mesIdx=parseInt(p[1]);
+  var mAnt=mesIdx-1,aAnt=ano;if(mAnt<0){mAnt=11;aAnt=ano-1;}
+  return !!dsBonusSet[cnpj+'_'+mAnt+'_'+aAnt];
+}
 // POL_BIZ é construído dinamicamente dos parceiros cadastrados no banco
 var POL_BIZ={};
 // Parseia string de política escalonada → {pol, tipo:'lojas'|'receita', tiers, fn(base,nLojas)}
@@ -3267,6 +3291,8 @@ function buildPolBiz(){
   });
   // GBR Digital escalonado por receita (legado)
   POL_BIZ['gbr digital']={pol:'Escalonado por receita',tipo:'receita',fn:function(b){return b<=50000?b*0.05:b<=125000?b*0.075:b<=300000?b*0.085:b*0.10;}};
+  // Data System: 5% da fatura paga, só para lojas que geraram bônus no mês anterior ao pagamento
+  POL_BIZ['data system']={pol:'5% fatura paga (bônus mês anterior)',tipo:'receita',fn:function(b){return b*0.05;}};
 }
 function procAdim(file){
   document.getElementById('adim-fn').textContent='Lendo '+file.name+'...';
@@ -3307,7 +3333,8 @@ function parseDataPgto(raw){
   return null;
 }
 
-function calcAdim(rows,arq){
+function calcAdim(rows,arq){return calcAdimAsync(rows,arq);}
+async function calcAdimAsync(rows,arq){
   var sample=rows[0]||{};
   var cols=Object.keys(sample);
   // CNPJ: coluna "Unnamed: 12" (CNPJ formatado) ou fallback Cd.Cliente
@@ -3372,6 +3399,29 @@ function calcAdim(rows,arq){
     });
     if(base>0)resultado.push({parceiro:parceiro,pol:polBiz.pol,polTipo:polBiz.tipo,encontrados:encontrados,base:base,comissao:polBiz.fn(base,encontrados.length),polFn:polBiz.fn,cnpjsGrupo:group.cnpjs});
   });
+
+  // ── DATA SYSTEM: 5% da fatura paga, restrito a CNPJs que geraram bônus DS no mês ANTERIOR
+  // ao pagamento (cruza com comissoes_detalhe tipo='tech' já salvo no upload de Bônus).
+  var dsBonus=await fetchDSBonusCnpjMes();
+  var dsBonusSet=dsBonus.set;var dsBonusNomes=dsBonus.nomes;
+  if(Object.keys(dsBonusSet).length){
+    var dsCnpjs={};var dsBase=0;var dsEncontrados=[];
+    Object.keys(mapaAdimPorMes).forEach(function(cnpj){
+      var valQualificado=0;
+      Object.keys(mapaAdimPorMes[cnpj]).forEach(function(chave){
+        if(chave==='sem_data')return;
+        if(dsQualificaMesAnterior(dsBonusSet,cnpj,chave))valQualificado+=mapaAdimPorMes[cnpj][chave];
+      });
+      if(valQualificado>0){
+        var nomeLoja=dsBonusNomes[cnpj]||cnpj;
+        dsCnpjs[cnpj]=nomeLoja;dsBase+=valQualificado;dsEncontrados.push({nome:nomeLoja,cnpj:cnpj,val:valQualificado});
+      }
+    });
+    if(dsBase>0){
+      var polDS=POL_BIZ['data system'];
+      resultado.push({parceiro:'DATA SYSTEM',pol:polDS.pol,polTipo:polDS.tipo,encontrados:dsEncontrados,base:dsBase,comissao:polDS.fn(dsBase),polFn:polDS.fn,cnpjsGrupo:dsCnpjs,dsOnly:true});
+    }
+  }
   if(!resultado.length){document.getElementById('adim-fn').textContent+=' — Nenhum CNPJ indicado encontrado no relatório';return;}
   // Alerta de CNPJs duplicados encontrados no relatório
   var dupEncontrados=cnpjsDuplicados.filter(function(c){return mapaAdimTotal[c]>0;});
@@ -3380,7 +3430,7 @@ function calcAdim(rows,arq){
     dupMsg+=dupEncontrados.map(function(c){return c+' ('+cnpjParceiroMap[c].join(' / ')+')';}).join('; ');
     document.getElementById('adim-fn').textContent=dupMsg;
   }
-  adimDadosPendentes={resultado:resultado,arq:arq,mapaAdimPorMes:mapaAdimPorMes,cnpjsDuplicados:dupEncontrados,cnpjParceiroMap:cnpjParceiroMap};
+  adimDadosPendentes={resultado:resultado,arq:arq,mapaAdimPorMes:mapaAdimPorMes,cnpjsDuplicados:dupEncontrados,cnpjParceiroMap:cnpjParceiroMap,dsBonusSet:dsBonusSet};
   var totalCom=resultado.reduce(function(s,r){return s+r.comissao;},0);
   document.getElementById('adim-total-preview').textContent=brl(totalCom);
   document.getElementById('adim-preview-tbody').innerHTML=resultado.map(function(r){
@@ -3406,12 +3456,14 @@ function registrarAdim(){
     var cnpjsGrupo=r.cnpjsGrupo;
 
     // Para cada mês/ano encontrado na planilha, calcular separadamente
+    var dsBonusSet=adimDadosPendentes.dsBonusSet||{};
     var porMes={};
     Object.keys(cnpjsGrupo).forEach(function(cnpj){
       var dadosCnpj=mapaAdimPorMes[cnpj];
       if(!dadosCnpj)return;
       Object.keys(dadosCnpj).forEach(function(chave){
         if(chave==='sem_data')return;
+        if(r.dsOnly&&!dsQualificaMesAnterior(dsBonusSet,cnpj,chave))return; // só meses com bônus DS no mês anterior
         var v=dadosCnpj[chave];
         if(!porMes[chave])porMes[chave]={base:0,cnpjs:{}};
         porMes[chave].base+=v;
@@ -3431,7 +3483,8 @@ function registrarAdim(){
       totalCom+=comissao;
       mesesRegistrados.add((mesIdx+1)+'/'+ano);
 
-      var target=ano===2026?CB26:CB25;
+      // Data System vai para aba de Integração (CT), não de Indicação (CB)
+      var target=r.dsOnly?(ano===2026?CT26:CT25):(ano===2026?CB26:CB25);
       var entry=target.find(function(c){return c.nome.toLowerCase()===r.parceiro.toLowerCase();});
       if(!entry){entry={nome:r.parceiro,pol:r.pol,vals:[0,0,0,0,0,0,0,0,0,0,0,0]};target.push(entry);}
       entry.vals[mesIdx]=(entry.vals[mesIdx]||0)+comissao;
@@ -3451,6 +3504,7 @@ function registrarAdim(){
   });
 
   rB();
+  rBonusTech();
   // Salva comissões Business no Supabase — um registro por parceiro/mês
   (async function(){
     try{
@@ -3460,12 +3514,14 @@ function registrarAdim(){
         var polKey=r.parceiro.toLowerCase().trim();
         var polBiz=POL_BIZ[polKey]||{pol:'10% receita',pct:0.10};
         var cnpjsGrupo=r.cnpjsGrupo;
+        var dsBonusSetSave=adimDadosPendentes.dsBonusSet||{};
         var porMes={};
         Object.keys(cnpjsGrupo).forEach(function(cnpj){
           var dadosCnpj=adimDadosPendentes.mapaAdimPorMes[cnpj];
           if(!dadosCnpj)return;
           Object.keys(dadosCnpj).forEach(function(chave){
             if(chave==='sem_data')return;
+            if(r.dsOnly&&!dsQualificaMesAnterior(dsBonusSetSave,cnpj,chave))return;
             var v=dadosCnpj[chave];
             if(!porMes[chave])porMes[chave]={base:0,cnpjs:{}};
             porMes[chave].base+=v;
@@ -3521,12 +3577,15 @@ async function carregarComissoesBusinessSupabase(){
     CB26.splice(0,CB26.length);
     data.forEach(function(r){
       if(!r.parceiro||r.mes===0)return;
-      var target=r.ano===2026?CB26:CB25;
+      // Data System: comissão de fatura vai para aba de Integração (CT), não de Indicação (CB)
+      var isDS=(r.parceiro.toUpperCase()==='DATA SYSTEM');
+      var target=isDS?(r.ano===2026?CT26:CT25):(r.ano===2026?CB26:CB25);
       var entry=target.find(function(c){return c.nome.toLowerCase()===r.parceiro.toLowerCase();});
       if(!entry){entry={nome:r.parceiro,pol:r.politica||'% receita',vals:[0,0,0,0,0,0,0,0,0,0,0,0]};target.push(entry);}
       entry.vals[(r.mes-1)]=(entry.vals[(r.mes-1)]||0)+(r.total||0);
     });
     rB();
+    rBonusTech();
     showSync('✓ Comissões de indicação carregadas do banco');
   }catch(e){console.warn('Supabase biz:',e.message);}
 }
@@ -3593,6 +3652,15 @@ async function abrirTechDet(parceiro, mesIdx){
   document.getElementById('chk-disparo').checked=((JSON.parse(localStorage.getItem('bizDetChk')||'{}')[_bizDetKey+'__disparo']===true));
   atualizarCorChk();
   _techDetSort={col:null,dir:1};
+
+  // Data System: comissão real fica salva como tipo='business' (vem da Adimplência), não tipo='tech'
+  if(parceiro.toUpperCase()==='DATA SYSTEM'){
+    var anoDS=parseInt(document.getElementById('ano-bonus-tech').value)||new Date().getFullYear();
+    var resDS=await sb.from('comissoes_detalhe').select('cliente,cnpj,comissao,base_receita').eq('tipo','business').eq('parceiro','DATA SYSTEM').eq('mes',mesIdx+1).eq('ano',anoDS);
+    var itensDS=(resDS.data||[]).map(function(r){return{loja:r.cliente||'(sem nome)',cnpj:r.cnpj||'',comissao:r.comissao||0,qtd:0,valorPago:r.base_receita||0};});
+    renderTechDet(parceiro,mesIdx,itensDS);
+    return;
+  }
 
   // Usa cache se já carregou
   if(TECH_DETAIL[key]&&TECH_DETAIL[key].length>0){
@@ -3749,13 +3817,15 @@ function renderTechDet(parceiro,mesIdx,itens){
       +label+si(col)+'</th>';
   }
 
+  var isDS=parceiro.toUpperCase()==='DATA SYSTEM';
   document.getElementById('biz-det-thead').innerHTML=
-    '<tr>'+th('loja','Loja',null)+th('cnpj','CNPJ',null)+th('qtd','Qtd Bônus','center')+th('com','Comissão','right')+'</tr>';
+    '<tr>'+th('loja','Loja',null)+th('cnpj','CNPJ',null)+(isDS?th('qtd','Valor Pago','right'):th('qtd','Qtd Bônus','center'))+th('com','Comissão','right')+'</tr>';
   document.getElementById('biz-det-tbody').innerHTML=sorted.map(function(i){
     return '<tr>'
       +'<td style="font-weight:600">'+i.loja+'</td>'
       +'<td style="font-size:11px;color:var(--n500);font-family:monospace;white-space:nowrap">'+(i.cnpj?fmtCNPJ(i.cnpj):'—')+'</td>'
-      +'<td style="text-align:center">'+i.qtd.toLocaleString('pt-BR')+'</td>'
+      +(isDS?'<td style="text-align:right">R$ '+Number(i.valorPago||0).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</td>'
+            :'<td style="text-align:center">'+i.qtd.toLocaleString('pt-BR')+'</td>')
       +'<td style="text-align:right;font-weight:700;color:var(--od)">R$ '+Number(i.comissao).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</td>'
       +'</tr>';
   }).join('');
@@ -3956,6 +4026,11 @@ function buildTechMap(){
       if(!PARCEIROS_CONTRATO.includes(nomeLow))PARCEIROS_CONTRATO.push(nomeLow);
     }
   });
+  // Data System: precisa SEMPRE estar no mapa de bônus, mesmo sem contrato tech "Ativo",
+  // pois a comissão real (5% da fatura paga) é calculada no upload de Adimplência — o bônus
+  // só serve para identificar quais CNPJs qualificam. Por isso fica fora do SEM_CONTRATO_ATIVO.
+  if(!PARCEIROS_CONTRATO.includes('data system')){TECH_POL_MAP['data system']='DATA SYSTEM';PARCEIROS_CONTRATO.push('data system');}
+  if(!PARCEIROS_CONTRATO.includes('datasystem')){TECH_POL_MAP['datasystem']='DATA SYSTEM';PARCEIROS_CONTRATO.push('datasystem');}
 }
 function openTechUploadModal(){document.getElementById('modal-tech-upload').style.display='flex';}
 function closeTechUploadModal(){document.getElementById('modal-tech-upload').style.display='none';document.getElementById('tech-fn').textContent='';document.getElementById('tech-preview').style.display='none';techDadosPendentes=null;}
@@ -4035,10 +4110,15 @@ function calcTech(rows,arq){
     var techVal=parcObj&&parcObj.tech?parcObj.tech.val:0.05;
     // Wake: comissão = qtd * R$0,75 * 10% = R$0,075/bônus
     if(nomeParceiro.toLowerCase()==='wake')techVal=0.75*0.10;
+    // Data System: não comissiona por bônus (R$/bônus=0); a comissão real é 5% da fatura
+    // paga (calculada no upload de Adimplência). Aqui só registramos os CNPJs que geraram
+    // bônus (para cruzamento posterior), com comissão zerada para não duplicar valores.
+    if(nomeParceiro.toLowerCase()==='data system')techVal=0;
     var dt=cData?parseMesTech(r[cData]):null;
     if(!dt)return;
-    // Verifica status e vigência do contrato tech
-    if(parcObj){
+    // Verifica status e vigência do contrato tech (não se aplica à Data System,
+    // cuja comissão real depende do contrato de Adimplência, não do tech)
+    if(parcObj&&nomeParceiro.toLowerCase()!=='data system'){
       if(parcObj.status&&parcObj.status!=='Ativo')return;
       var dtRef=new Date(dt.ano,dt.mes-1,1);
       if(parcObj.tech.vigIni){var ini=new Date(parcObj.tech.vigIni);if(dtRef<ini)return;}
@@ -4064,12 +4144,12 @@ function calcTech(rows,arq){
   // Agrupa por parceiro para prévia
   var porNome={};
   resultado.forEach(function(r){
-    if(!porNome[r.parceiro])porNome[r.parceiro]={qtd:0,com:0,techVal:r.techVal||0.05};
+    if(!porNome[r.parceiro])porNome[r.parceiro]={qtd:0,com:0,techVal:(typeof r.techVal==='number'?r.techVal:0.05)};
     porNome[r.parceiro].qtd+=r.qtd;
-    porNome[r.parceiro].com+=r.qtd*(r.techVal||0.05);
+    porNome[r.parceiro].com+=r.qtd*(typeof r.techVal==='number'?r.techVal:0.05);
   });
 
-  var totalCom=resultado.reduce(function(s,r){return s+r.qtd*(r.techVal||0.05);},0);
+  var totalCom=resultado.reduce(function(s,r){return s+r.qtd*(typeof r.techVal==='number'?r.techVal:0.05);},0);
   document.getElementById('tech-total-preview').textContent='R$ '+totalCom.toLocaleString('pt-BR',{minimumFractionDigits:2});
   document.getElementById('tech-preview-tbody').innerHTML=Object.keys(porNome).map(function(p){
     var v=porNome[p];
@@ -4087,7 +4167,7 @@ async function registrarTech(){
   var inserts=[];
   var detalhes=[];
   resultado.forEach(function(r){
-    var techVal=r.techVal||0.05;
+    var techVal=typeof r.techVal==='number'?r.techVal:0.05;
     var total=r.qtd*techVal;
     var polLabel=r.parceiro.toLowerCase()==='wake'?'R$0,75/bônus × 10%':'R$'+techVal.toFixed(2)+'/bônus';
     inserts.push({parceiro:r.parceiro,tipo:'tech',mes:r.mes,ano:r.ano,total:total,politica:polLabel,qtd_bonus:r.qtd,base_receita:0,arquivo:arq});
