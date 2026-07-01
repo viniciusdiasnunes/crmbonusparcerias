@@ -3333,6 +3333,16 @@ function parseDataPgto(raw){
   return null;
 }
 
+// Restrição por Cd.Empresa: parceiros aqui só recebem comissão sobre pagamentos
+// feitos à(s) empresa(s) listada(s). Ex.: Wizos só recebe sobre pagamentos da
+// Di Santinni feitos à e-click (Cd.Empresa = 0101). Afeta APENAS os parceiros
+// listados aqui — todos os demais seguem o cálculo normal, sem filtro.
+var EMPRESA_FILTER_PARCEIRO={'wizos':['0101']};
+function somaEmpresasPermitidas(porChaveEmpresa,permitidas){
+  var soma=0;
+  permitidas.forEach(function(emp){soma+=(porChaveEmpresa&&porChaveEmpresa[emp])||0;});
+  return soma;
+}
 function calcAdim(rows,arq){return calcAdimAsync(rows,arq);}
 async function calcAdimAsync(rows,arq){
   var sample=rows[0]||{};
@@ -3345,6 +3355,8 @@ async function calcAdimAsync(rows,arq){
   var cLiq=cPago||cols.find(function(c){return /l.?quido/i.test(c);});
   // Coluna J (índice 9) = Pagamento = data de competência
   var cData=cols[9]||null;
+  // Cd.Empresa (normalmente 1ª coluna) — usado apenas pelo filtro EMPRESA_FILTER_PARCEIRO
+  var cEmpresa=cols.find(function(c){return /cd\.?\s*empresa/i.test(c);})||cols[0];
 
   // Detecta CNPJs com múltiplos parceiros indicadores
   var cnpjParceiroMap={};
@@ -3358,6 +3370,9 @@ async function calcAdimAsync(rows,arq){
 
   // Mapa: cnpj -> {ano_mesIdx -> valor} — só onde Pago > 0
   var mapaAdimPorMes={};
+  // Mesmo mapa, mas detalhado por Cd.Empresa — só é consultado para parceiros
+  // com EMPRESA_FILTER_PARCEIRO (ex.: Wizos). Não altera o cálculo de ninguém mais.
+  var mapaAdimPorMesEmpresa={};
   rows.forEach(function(r){
     var cnpj=normCNPJ(r[cCNPJ]);
     if(!cnpj||cnpj==='00000000000000')return;
@@ -3372,6 +3387,10 @@ async function calcAdimAsync(rows,arq){
     var chave=dt?(dt.ano+'_'+dt.mesIdx):'sem_data';
     if(!mapaAdimPorMes[cnpj])mapaAdimPorMes[cnpj]={};
     mapaAdimPorMes[cnpj][chave]=(mapaAdimPorMes[cnpj][chave]||0)+val;
+    var empresa=String(r[cEmpresa]||'').trim();
+    if(!mapaAdimPorMesEmpresa[cnpj])mapaAdimPorMesEmpresa[cnpj]={};
+    if(!mapaAdimPorMesEmpresa[cnpj][chave])mapaAdimPorMesEmpresa[cnpj][chave]={};
+    mapaAdimPorMesEmpresa[cnpj][chave][empresa]=(mapaAdimPorMesEmpresa[cnpj][chave][empresa]||0)+val;
   });
 
   // Consolida CNPJs sem data num único bucket para preview total
@@ -3394,8 +3413,17 @@ async function calcAdimAsync(rows,arq){
     var polKey=parceiro.toLowerCase().trim();
     var polBiz=POL_BIZ[polKey]||{pol:'10% receita',fn:function(b){return b*0.10;}};
     var base=0;var encontrados=[];
+    var permitidas=EMPRESA_FILTER_PARCEIRO[polKey];
     Object.keys(group.cnpjs).forEach(function(cnpj){
-      if(mapaAdimTotal[cnpj]){base+=mapaAdimTotal[cnpj];encontrados.push({nome:group.cnpjs[cnpj],cnpj:cnpj,val:mapaAdimTotal[cnpj]});}
+      var valCnpj;
+      if(permitidas){
+        valCnpj=0;
+        var porChave=mapaAdimPorMesEmpresa[cnpj]||{};
+        Object.keys(porChave).forEach(function(chave){valCnpj+=somaEmpresasPermitidas(porChave[chave],permitidas);});
+      } else {
+        valCnpj=mapaAdimTotal[cnpj]||0;
+      }
+      if(valCnpj>0){base+=valCnpj;encontrados.push({nome:group.cnpjs[cnpj],cnpj:cnpj,val:valCnpj});}
     });
     if(base>0)resultado.push({parceiro:parceiro,pol:polBiz.pol,polTipo:polBiz.tipo,encontrados:encontrados,base:base,comissao:polBiz.fn(base,encontrados.length),polFn:polBiz.fn,cnpjsGrupo:group.cnpjs});
   });
@@ -3430,7 +3458,7 @@ async function calcAdimAsync(rows,arq){
     dupMsg+=dupEncontrados.map(function(c){return c+' ('+cnpjParceiroMap[c].join(' / ')+')';}).join('; ');
     document.getElementById('adim-fn').textContent=dupMsg;
   }
-  adimDadosPendentes={resultado:resultado,arq:arq,mapaAdimPorMes:mapaAdimPorMes,cnpjsDuplicados:dupEncontrados,cnpjParceiroMap:cnpjParceiroMap,dsBonusSet:dsBonusSet};
+  adimDadosPendentes={resultado:resultado,arq:arq,mapaAdimPorMes:mapaAdimPorMes,mapaAdimPorMesEmpresa:mapaAdimPorMesEmpresa,cnpjsDuplicados:dupEncontrados,cnpjParceiroMap:cnpjParceiroMap,dsBonusSet:dsBonusSet};
   var totalCom=resultado.reduce(function(s,r){return s+r.comissao;},0);
   document.getElementById('adim-total-preview').textContent=brl(totalCom);
   document.getElementById('adim-preview-tbody').innerHTML=resultado.map(function(r){
@@ -3457,6 +3485,8 @@ function registrarAdim(){
 
     // Para cada mês/ano encontrado na planilha, calcular separadamente
     var dsBonusSet=adimDadosPendentes.dsBonusSet||{};
+    var mapaAdimPorMesEmpresa=adimDadosPendentes.mapaAdimPorMesEmpresa||{};
+    var permitidas=EMPRESA_FILTER_PARCEIRO[polKey];
     var porMes={};
     Object.keys(cnpjsGrupo).forEach(function(cnpj){
       var dadosCnpj=mapaAdimPorMes[cnpj];
@@ -3464,7 +3494,14 @@ function registrarAdim(){
       Object.keys(dadosCnpj).forEach(function(chave){
         if(chave==='sem_data')return;
         if(r.dsOnly&&!dsQualificaMesAnterior(dsBonusSet,cnpj,chave))return; // só meses com bônus DS no mês anterior
-        var v=dadosCnpj[chave];
+        var v;
+        if(permitidas){
+          var porChave=(mapaAdimPorMesEmpresa[cnpj]||{})[chave];
+          v=somaEmpresasPermitidas(porChave,permitidas);
+          if(v<=0)return;
+        } else {
+          v=dadosCnpj[chave];
+        }
         if(!porMes[chave])porMes[chave]={base:0,cnpjs:{}};
         porMes[chave].base+=v;
         if(!porMes[chave].cnpjs[cnpj])porMes[chave].cnpjs[cnpj]={nome:cnpjsGrupo[cnpj],val:0};
@@ -3515,6 +3552,8 @@ function registrarAdim(){
         var polBiz=POL_BIZ[polKey]||{pol:'10% receita',pct:0.10};
         var cnpjsGrupo=r.cnpjsGrupo;
         var dsBonusSetSave=adimDadosPendentes.dsBonusSet||{};
+        var mapaAdimPorMesEmpresaSave=adimDadosPendentes.mapaAdimPorMesEmpresa||{};
+        var permitidasSave=EMPRESA_FILTER_PARCEIRO[polKey];
         var porMes={};
         Object.keys(cnpjsGrupo).forEach(function(cnpj){
           var dadosCnpj=adimDadosPendentes.mapaAdimPorMes[cnpj];
@@ -3522,7 +3561,14 @@ function registrarAdim(){
           Object.keys(dadosCnpj).forEach(function(chave){
             if(chave==='sem_data')return;
             if(r.dsOnly&&!dsQualificaMesAnterior(dsBonusSetSave,cnpj,chave))return;
-            var v=dadosCnpj[chave];
+            var v;
+            if(permitidasSave){
+              var porChave=(mapaAdimPorMesEmpresaSave[cnpj]||{})[chave];
+              v=somaEmpresasPermitidas(porChave,permitidasSave);
+              if(v<=0)return;
+            } else {
+              v=dadosCnpj[chave];
+            }
             if(!porMes[chave])porMes[chave]={base:0,cnpjs:{}};
             porMes[chave].base+=v;
             if(!porMes[chave].cnpjs[cnpj])porMes[chave].cnpjs[cnpj]={nome:cnpjsGrupo[cnpj],val:0};
