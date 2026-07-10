@@ -162,6 +162,11 @@ th[onclick]{transition:background .15s;}
 .lbtn{width:100%;padding:12px;background:var(--orange);color:var(--n900);font-weight:700;font-size:12px;letter-spacing:0.5px;text-transform:uppercase;border:none;border-radius:var(--r);cursor:pointer;font-family:var(--f);margin-top:8px;transition:background .15s;}
 .lbtn:hover{background:var(--od);}
 .lerr{color:#922;font-size:11px;font-weight:600;margin-top:10px;text-align:center;min-height:16px;}
+.ldiv{display:flex;align-items:center;gap:10px;margin:18px 0 14px;}
+.ldiv::before,.ldiv::after{content:'';flex:1;height:1px;background:var(--bdr);}
+.ldiv span{font-size:10px;color:var(--n300);text-transform:uppercase;letter-spacing:0.8px;}
+.lbtn-google{width:100%;padding:11px;background:var(--white);color:var(--n900);font-weight:600;font-size:12.5px;border:1.5px solid var(--bdr);border-radius:var(--r);cursor:pointer;font-family:var(--f);display:flex;align-items:center;justify-content:center;gap:10px;transition:background .15s,border-color .15s;}
+.lbtn-google:hover{background:var(--o50);border-color:var(--orange);}
 /* badge usuário no header */
 .ubadge{display:flex;align-items:center;gap:8px;margin-left:auto;padding:5px 12px;border-radius:20px;background:rgba(255,255,255,.08);font-size:11px;color:var(--n100);font-weight:600;}
 .urole{padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;}
@@ -216,6 +221,16 @@ body.viewer-mode .edit-only{display:none!important;}
     </div>
     <button class="lbtn" onclick="doLogin()">Entrar</button>
     <div class="lerr" id="l-err"></div>
+    <div class="ldiv"><span>ou</span></div>
+    <button type="button" class="lbtn-google" onclick="doLoginGoogle()">
+      <svg width="16" height="16" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#FFC107" d="M43.61,20.08H42V20H24v8h11.3c-1.65,4.66-6.08,8-11.3,8c-6.63,0-12-5.37-12-12s5.37-12,12-12c3.06,0,5.85,1.15,7.97,3.03l5.66-5.66C34.62,6.02,29.6,4,24,4C12.95,4,4,12.95,4,24s8.95,20,20,20s20-8.95,20-20C44,22.66,43.86,21.35,43.61,20.08z"/>
+        <path fill="#FF3D00" d="M6.31,14.69l6.57,4.82C14.63,15.29,18.97,12,24,12c3.06,0,5.85,1.15,7.97,3.03l5.66-5.66C34.62,6.02,29.6,4,24,4C16.32,4,9.68,8.34,6.31,14.69z"/>
+        <path fill="#4CAF50" d="M24,44c5.5,0,10.44-1.94,14.02-5.19l-6.47-5.47C29.53,34.72,26.9,36,24,36c-5.2,0-9.62-3.32-11.28-7.96l-6.53,5.03C9.55,39.56,16.23,44,24,44z"/>
+        <path fill="#1976D2" d="M43.61,20.08H42V20H24v8h11.3c-0.79,2.24-2.24,4.15-4.09,5.53l6.47,5.47C41.09,35.6,44,29.6,44,24C44,22.66,43.86,21.35,43.61,20.08z"/>
+      </svg>
+      Entrar com Google
+    </button>
   </div>
 </div>
 
@@ -944,6 +959,51 @@ function doLogin(){
   registrarLog(email,'login','Login realizado');
 }
 
+// ── LOGIN COM GOOGLE (Supabase Auth OAuth) ───────────────────────
+function doLoginGoogle(){
+  document.getElementById('l-err').textContent='';
+  sb.auth.signInWithOAuth({
+    provider:'google',
+    options:{
+      redirectTo: window.location.origin + window.location.pathname,
+      queryParams:{ prompt:'select_account', hd:'crmbonus.com' }
+    }
+  });
+}
+
+// Determina o papel (role) de um e-mail autenticado via Google.
+// Fonte da verdade: tabela hub_users no Supabase (sincronizada com HUB_AUTH local).
+async function obterRoleGoogle(email){
+  if(HUB_AUTH[email])return HUB_AUTH[email].role;
+  try{
+    const {data,error}=await sb.from('hub_users').select('role').eq('email',email).maybeSingle();
+    if(error||!data)return null;
+    return data.role;
+  }catch(e){return null;}
+}
+
+// Verifica se existe uma sessão Google ativa (retorno do redirect OAuth ou sessão já persistida).
+async function restaurarSessaoGoogle(){
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session)return;
+    var email=(session.user.email||'').trim().toLowerCase();
+    var role=await obterRoleGoogle(email);
+    if(!role){
+      document.getElementById('l-err').textContent='Seu e-mail não está autorizado a acessar o Hub. Contate o administrador.';
+      await sb.auth.signOut();
+      return;
+    }
+    localStorage.setItem('hub_session', JSON.stringify({email:email, ts:Date.now(), provider:'google'}));
+    aplicarSessao(email, role);
+    registrarLog(email,'login','Login realizado (Google)');
+    var _t=localStorage.getItem('hub_tab');
+    if(_t)setTimeout(function(){sw(_t);},50);
+  }catch(e){
+    console.error('Erro ao restaurar sessão Google:',e);
+  }
+}
+
 function aplicarSessao(email,role){
   document.getElementById('login-screen').classList.add('hidden');
   window.ROLE=role;
@@ -970,6 +1030,7 @@ function aplicarSessao(email,role){
 function doLogout(){
   if(window.CURRENT_EMAIL)registrarLog(window.CURRENT_EMAIL,'logout','Logout realizado');
   localStorage.removeItem('hub_session');
+  sb.auth.signOut().catch(function(){});
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('l-email').value='';
   document.getElementById('l-pass').value='';
@@ -4007,8 +4068,10 @@ window.addEventListener('DOMContentLoaded', function(){
     if(s){try{
       var sess=JSON.parse(s);
       var u=HUB_AUTH[sess.email];
-      if(u){aplicarSessao(sess.email,u.role);var _t=localStorage.getItem('hub_tab');if(_t)setTimeout(function(){sw(_t);},50);}
+      if(u){aplicarSessao(sess.email,u.role);var _t=localStorage.getItem('hub_tab');if(_t)setTimeout(function(){sw(_t);},50);return;}
     }catch(e){localStorage.removeItem('hub_session');}}
+    // Nenhuma sessão local por senha: verifica se há sessão Google (Supabase Auth)
+    restaurarSessaoGoogle();
   })();
 });
 
