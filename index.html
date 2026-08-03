@@ -3588,11 +3588,11 @@ function registrarAdim(){
       var target=r.dsOnly?(ano===2026?CT26:CT25):(ano===2026?CB26:CB25);
       var entry=target.find(function(c){return c.nome.toLowerCase()===r.parceiro.toLowerCase();});
       if(!entry){entry={nome:r.parceiro,pol:r.pol,vals:[0,0,0,0,0,0,0,0,0,0,0,0]};target.push(entry);}
-      entry.vals[mesIdx]=(entry.vals[mesIdx]||0)+comissao;
+      entry.vals[mesIdx]=comissao; // sobrescreve o mês (não soma) — evita duplicar ao reprocessar
 
       // Detalhe clicável — rateio proporcional da comissão total entre clientes
       var key=r.parceiro+'__'+mesIdx;
-      if(!ADIM_DETAIL[key])ADIM_DETAIL[key]=[];
+      ADIM_DETAIL[key]=[]; // limpa antes de repopular — evita linhas antigas duplicadas
       var pct=base>0?comissao/base:0;
       Object.keys(porMes[chave].cnpjs).forEach(function(cnpj){
         var c=porMes[chave].cnpjs[cnpj];
@@ -3658,14 +3658,24 @@ function registrarAdim(){
         });
       });
       if(inserts.length){
-        await sb.from('comissoes').delete().eq('tipo','business').eq('arquivo',arq);
-        await sb.from('comissoes_detalhe').delete().eq('tipo','business').eq('arquivo',arq);
+        // Sobrescreve por parceiro + mês + ano (não por nome de arquivo) — mesmo padrão
+        // usado no upload de Bônus/Integração. Isso garante que reprocessar o mesmo
+        // período (ex.: base corrigida, arquivo com nome diferente) SUBSTITUI os
+        // valores antigos em vez de somar em cima deles.
+        var mesesVistosBiz=new Set();
+        inserts.forEach(function(d){mesesVistosBiz.add(d.mes+'|'+d.ano);});
+        var parceirosNoArqBiz=Array.from(new Set(inserts.map(function(d){return d.parceiro;})));
+        for(var miBiz of mesesVistosBiz){
+          var partsBiz=miBiz.split('|'); var mmBiz=parseInt(partsBiz[0]); var aaBiz=parseInt(partsBiz[1]);
+          await sb.from('comissoes').delete().eq('tipo','business').eq('mes',mmBiz).eq('ano',aaBiz).in('parceiro',parceirosNoArqBiz);
+          await sb.from('comissoes_detalhe').delete().eq('tipo','business').eq('mes',mmBiz).eq('ano',aaBiz).in('parceiro',parceirosNoArqBiz);
+        }
         await sb.from('comissoes').insert(inserts);
         // Salva detalhes em lotes de 500
         for(var i=0;i<detalhes.length;i+=500){
           await sb.from('comissoes_detalhe').insert(detalhes.slice(i,i+500));
         }
-        showSync('✓ '+inserts.length+' registros + detalhes salvos no banco');
+        showSync('✓ '+inserts.length+' registros salvos no banco (mês/ano sobrescrito, sem duplicar)');
         registrarLog(window.CURRENT_EMAIL,'upload','Upload adimplência: '+arq+' ('+inserts.length+' registros)');
       }
     }catch(e){showSync('⚠ Erro ao salvar: '+e.message,false);}
