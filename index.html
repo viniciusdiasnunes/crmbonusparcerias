@@ -3408,14 +3408,17 @@ function calcAdim(rows,arq){return calcAdimAsync(rows,arq);}
 async function calcAdimAsync(rows,arq){
   var sample=rows[0]||{};
   var cols=Object.keys(sample);
-  // CNPJ: coluna "Unnamed: 12" (CNPJ formatado) ou fallback Cd.Cliente
+  // CNPJ: "Unnamed: 12" (formato legado) → "Cd.Cliente"/"codigo_cliente" → qualquer coluna com "cliente"
   var cCNPJ=cols.find(function(c){return /unnamed.*12/i.test(c)||/cd.?cliente/i.test(c);});
+  if(!cCNPJ)cCNPJ=cols.find(function(c){return /codigo.*cliente|cod.*cliente/i.test(c);});
   if(!cCNPJ)cCNPJ=cols.find(function(c){return /cliente/i.test(c);});
-  // Coluna base: Pago (filtrar Pago > 0)
-  var cPago=cols.find(function(c){return /^pago$/i.test(c.trim());});
+  // Coluna base: aceita "Pago", "valor_pago", "Valor Pago" etc. — fallback: "líquido"
+  var cPago=cols.find(function(c){return /^pago$/i.test(c.trim())||/valor.?pago/i.test(c);});
   var cLiq=cPago||cols.find(function(c){return /l.?quido/i.test(c);});
-  // Coluna J (índice 9) = Pagamento = data de competência
-  var cData=cols[9]||null;
+  // Data de pagamento: procura por nome (data_pagamento, Data Pagamento, dt_pagamento...)
+  // Fallback: coluna J (índice 9) do relatório legado "Títulos a Receber"
+  var cData=cols.find(function(c){return /data.*pag|dt.*pag|pagamento.*data/i.test(c);});
+  if(!cData)cData=cols[9]||null;
   // Cd.Empresa (normalmente 1ª coluna) — usado apenas pelo filtro EMPRESA_FILTER_PARCEIRO
   var cEmpresa=cols.find(function(c){return /cd\.?\s*empresa/i.test(c);})||cols[0];
 
