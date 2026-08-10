@@ -919,32 +919,9 @@ const SB_KEY = 'sb_publishable_CQu2Rb5s8OTRbEpSbu5bSw_5kXYgzsE';
 const { createClient } = supabase;
 const sb = createClient(SB_URL, SB_KEY);
 
-// ── AUTH LOCAL (sem Supabase Auth) ───────────────────────────────
+// ── AUTH (Supabase Auth de verdade — sem localStorage próprio) ────
 window.ROLE=null;
-
-// Tabela de usuários e senhas — admin pode redefinir pelo app
-var HUB_AUTH={
-  'aline.rodrigues@crmbonus.com':   {senha:'Crmbonus@2026', role:'viewer'},
-  'beatriz.souza@crmbonus.com':     {senha:'Crmbonus@2026', role:'viewer'},
-  'caroline.queiroz@crmbonus.com':  {senha:'Crmbonus@2026', role:'viewer'},
-  'eduardo.santos@crmbonus.com':    {senha:'Crmbonus@2026', role:'viewer'},
-  'gianluca.freitas@crmbonus.com':  {senha:'Crmbonus@2026', role:'viewer'},
-  'gustavo.gadotti@crmbonus.com':   {senha:'Crmbonus@2026', role:'viewer'},
-  'lucas.nery@crmbonus.com':        {senha:'Crmbonus@2026', role:'viewer'},
-  'lucas.sousa@crmbonus.com':       {senha:'Crmbonus@2026', role:'viewer'},
-  'marcelo.massaki@crmbonus.com':   {senha:'Crmbonus@2026', role:'viewer'},
-  'marcelo.quaresma@crmbonus.com':  {senha:'Crmbonus@2026', role:'viewer'},
-  'vinicius.nunes@crmbonus.com':    {senha:'PresenteIA@2026', role:'admin'}
-};
-
-function _salvarAuth(){
-  localStorage.setItem('hub_auth_table', JSON.stringify(HUB_AUTH));
-}
-function _carregarAuth(){
-  var s=localStorage.getItem('hub_auth_table');
-  if(s){try{HUB_AUTH=JSON.parse(s);}catch(e){}}
-}
-_carregarAuth();
+const EDGE_FN_URL = SB_URL + '/functions/v1/admin-users';
 
 function doLogin(){
   var email=document.getElementById('l-email').value.trim().toLowerCase();
@@ -952,11 +929,29 @@ function doLogin(){
   var errEl=document.getElementById('l-err');
   errEl.textContent='';
   if(!email||!pass){errEl.textContent='Preencha e-mail e senha.';return;}
-  var u=HUB_AUTH[email];
-  if(!u||u.senha!==pass){errEl.textContent='E-mail ou senha incorretos.';document.getElementById('l-pass').value='';return;}
-  localStorage.setItem('hub_session', JSON.stringify({email:email, ts:Date.now()}));
-  aplicarSessao(email, u.role);
-  registrarLog(email,'login','Login realizado');
+  doLoginAsync(email,pass);
+}
+
+async function doLoginAsync(email,pass){
+  var errEl=document.getElementById('l-err');
+  try{
+    const {data,error}=await sb.auth.signInWithPassword({email:email, password:pass});
+    if(error||!data.session){
+      errEl.textContent='E-mail ou senha incorretos.';
+      document.getElementById('l-pass').value='';
+      return;
+    }
+    var role=await obterRole(email);
+    if(!role){
+      errEl.textContent='Seu e-mail não está autorizado a acessar o Hub. Contate o administrador.';
+      await sb.auth.signOut();
+      return;
+    }
+    aplicarSessao(email, role);
+    registrarLog(email,'login','Login realizado');
+  }catch(e){
+    errEl.textContent='Erro ao entrar. Tente novamente.';
+  }
 }
 
 // ── LOGIN COM GOOGLE (Supabase Auth OAuth) ───────────────────────
@@ -971,10 +966,8 @@ function doLoginGoogle(){
   });
 }
 
-// Determina o papel (role) de um e-mail autenticado via Google.
-// Fonte da verdade: tabela hub_users no Supabase (sincronizada com HUB_AUTH local).
-async function obterRoleGoogle(email){
-  if(HUB_AUTH[email])return HUB_AUTH[email].role;
+// Determina o papel (role) de um e-mail autenticado. Fonte da verdade: tabela hub_users.
+async function obterRole(email){
   try{
     const {data,error}=await sb.from('hub_users').select('role').eq('email',email).maybeSingle();
     if(error||!data)return null;
@@ -982,25 +975,24 @@ async function obterRoleGoogle(email){
   }catch(e){return null;}
 }
 
-// Verifica se existe uma sessão Google ativa (retorno do redirect OAuth ou sessão já persistida).
-async function restaurarSessaoGoogle(){
+// Verifica se existe uma sessão Supabase Auth ativa (senha ou Google) e aplica.
+async function restaurarSessao(){
   try{
     const {data:{session}}=await sb.auth.getSession();
     if(!session)return;
     var email=(session.user.email||'').trim().toLowerCase();
-    var role=await obterRoleGoogle(email);
+    var role=await obterRole(email);
     if(!role){
       document.getElementById('l-err').textContent='Seu e-mail não está autorizado a acessar o Hub. Contate o administrador.';
       await sb.auth.signOut();
       return;
     }
-    localStorage.setItem('hub_session', JSON.stringify({email:email, ts:Date.now(), provider:'google'}));
     aplicarSessao(email, role);
-    registrarLog(email,'login','Login realizado (Google)');
+    registrarLog(email,'login','Login realizado');
     var _t=localStorage.getItem('hub_tab');
     if(_t)setTimeout(function(){sw(_t);},50);
   }catch(e){
-    console.error('Erro ao restaurar sessão Google:',e);
+    console.error('Erro ao restaurar sessão:',e);
   }
 }
 
@@ -1029,7 +1021,6 @@ function aplicarSessao(email,role){
 
 function doLogout(){
   if(window.CURRENT_EMAIL)registrarLog(window.CURRENT_EMAIL,'logout','Logout realizado');
-  localStorage.removeItem('hub_session');
   sb.auth.signOut().catch(function(){});
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('l-email').value='';
@@ -1208,7 +1199,7 @@ function closeLogsModal(){
 // ── USUÁRIOS (Supabase Auth + hub_users) ─────────────────────────
 async function carregarUsuariosSupabase(){
   try{
-    const {data,error}=await sb.from('hub_users').select('email,role');
+    const {data,error}=await sb.from('hub_users').select('email,role,user_id');
     if(error)throw error;
     window._HUB_USERS=data||[];
   }catch(e){
@@ -1310,6 +1301,29 @@ function closeUsuarioModal(){
   document.getElementById('modal-usuario').style.display='none';
 }
 
+// Chama a Edge Function admin-users (roda com service_role no servidor,
+// verifica que quem chama é admin, e só então cria/edita/remove de verdade).
+async function chamarAdminUsers(payload){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){return {error:'Sessão expirada. Faça login novamente.'};}
+  try{
+    const res=await fetch(EDGE_FN_URL,{
+      method:'POST',
+      headers:{
+        'Authorization':'Bearer '+session.access_token,
+        'apikey':SB_KEY,
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify(payload)
+    });
+    const d=await res.json().catch(()=>({}));
+    if(!res.ok){return {error:d.error||('Erro ('+res.status+')')};}
+    return d;
+  }catch(e){
+    return {error:'Falha de rede ao contatar o servidor.'};
+  }
+}
+
 async function salvarUsuario(){
   var email=document.getElementById('um-email').value.trim().toLowerCase();
   var role=document.getElementById('um-role').value;
@@ -1321,28 +1335,31 @@ async function salvarUsuario(){
   if(!email){erroEl.textContent='Informe o e-mail.';return;}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){erroEl.textContent='E-mail inválido.';return;}
 
+  var btn=document.getElementById('um-salvar-btn');
+  var textoOriginal=btn.textContent;
+  btn.disabled=true; btn.textContent='Salvando...';
+
   if(_editandoUsuarioEmail){
     // Edição: atualiza role (e senha se informada)
-    if(!HUB_AUTH[_editandoUsuarioEmail]){erroEl.textContent='Usuário não encontrado.';return;}
-    HUB_AUTH[_editandoUsuarioEmail].role=role;
     if(senha||senha2){
-      if(senha.length<6){erroEl.textContent='Senha deve ter ao menos 6 caracteres.';return;}
-      if(senha!==senha2){erroEl.textContent='As senhas não coincidem.';return;}
-      HUB_AUTH[_editandoUsuarioEmail].senha=senha;
+      if(senha.length<6){erroEl.textContent='Senha deve ter ao menos 6 caracteres.';btn.disabled=false;btn.textContent=textoOriginal;return;}
+      if(senha!==senha2){erroEl.textContent='As senhas não coincidem.';btn.disabled=false;btn.textContent=textoOriginal;return;}
+      var u=(window._HUB_USERS||[]).find(function(x){return x.email===_editandoUsuarioEmail;});
+      var rSenha=await chamarAdminUsers({action:'setPassword',user_id:u&&u.user_id,password:senha});
+      if(rSenha.error){erroEl.textContent=rSenha.error;btn.disabled=false;btn.textContent=textoOriginal;return;}
     }
-    // Atualiza role também no hub_users do Supabase
-    await sb.from('hub_users').update({role}).eq('email',_editandoUsuarioEmail);
+    var rRole=await chamarAdminUsers({action:'setRole',email:_editandoUsuarioEmail,role:role});
+    if(rRole.error){erroEl.textContent=rRole.error;btn.disabled=false;btn.textContent=textoOriginal;return;}
   } else {
     // Novo usuário
-    if(!senha){erroEl.textContent='Informe a senha.';return;}
-    if(senha.length<6){erroEl.textContent='Senha deve ter ao menos 6 caracteres.';return;}
-    if(senha!==senha2){erroEl.textContent='As senhas não coincidem.';return;}
-    if((window._HUB_USERS||[]).some(u=>u.email===email)){erroEl.textContent='Já existe um usuário com este e-mail.';return;}
-    HUB_AUTH[email]={senha:senha, role:role};
-    await sb.from('hub_users').insert({email,role});
+    if(!senha){erroEl.textContent='Informe a senha.';btn.disabled=false;btn.textContent=textoOriginal;return;}
+    if(senha.length<6){erroEl.textContent='Senha deve ter ao menos 6 caracteres.';btn.disabled=false;btn.textContent=textoOriginal;return;}
+    if(senha!==senha2){erroEl.textContent='As senhas não coincidem.';btn.disabled=false;btn.textContent=textoOriginal;return;}
+    var rNovo=await chamarAdminUsers({action:'create',email:email,password:senha,role:role});
+    if(rNovo.error){erroEl.textContent=rNovo.error;btn.disabled=false;btn.textContent=textoOriginal;return;}
   }
 
-  _salvarAuth();
+  btn.disabled=false; btn.textContent=textoOriginal;
   await carregarUsuariosSupabase();
   closeUsuarioModal();
   showSync(_editandoUsuarioEmail?'✓ Usuário atualizado':'✓ Usuário criado');
@@ -1352,9 +1369,9 @@ async function salvarUsuario(){
 async function removerUsuario(email){
   if(email===window.CURRENT_EMAIL){showSync('Não é possível remover a própria conta.',false);return;}
   if(!confirm('Remover o usuário '+email+'?'))return;
-  delete HUB_AUTH[email];
-  _salvarAuth();
-  await sb.from('hub_users').delete().eq('email',email);
+  var u=(window._HUB_USERS||[]).find(function(x){return x.email===email;});
+  var r=await chamarAdminUsers({action:'delete',email:email,user_id:u&&u.user_id});
+  if(r.error){showSync(r.error,false);return;}
   await carregarUsuariosSupabase();
   showSync('✓ Usuário removido');
   registrarLog(window.CURRENT_EMAIL,'delete','Removeu usuário: '+email);
@@ -1373,7 +1390,7 @@ function closeRedefSenhaModal(){
   document.getElementById('modal-redef-senha').style.display='none';
 }
 
-function confirmarRedefSenha(){
+async function confirmarRedefSenha(){
   var nova=document.getElementById('rs-nova').value;
   var confirm2=document.getElementById('rs-confirm').value;
   var erroEl=document.getElementById('rs-erro');
@@ -1381,9 +1398,10 @@ function confirmarRedefSenha(){
   if(!nova){erroEl.textContent='Informe a nova senha.';return;}
   if(nova.length<6){erroEl.textContent='Senha deve ter ao menos 6 caracteres.';return;}
   if(nova!==confirm2){erroEl.textContent='As senhas não coincidem.';return;}
-  if(!HUB_AUTH[_redefSenhaEmail]){erroEl.textContent='Usuário não encontrado.';return;}
-  HUB_AUTH[_redefSenhaEmail].senha=nova;
-  _salvarAuth();
+  var u=(window._HUB_USERS||[]).find(function(x){return x.email===_redefSenhaEmail;});
+  if(!u||!u.user_id){erroEl.textContent='Usuário não encontrado.';return;}
+  var r=await chamarAdminUsers({action:'setPassword',user_id:u.user_id,password:nova});
+  if(r.error){erroEl.textContent=r.error;return;}
   closeRedefSenhaModal();
   showSync('✓ Senha de '+_redefSenhaEmail+' atualizada com sucesso');
   registrarLog(window.CURRENT_EMAIL,'edit','Redefiniu senha de: '+_redefSenhaEmail);
@@ -4075,17 +4093,8 @@ window.addEventListener('DOMContentLoaded', function(){
   document.getElementById('chk-disparo').checked = localStorage.getItem('chk-disparo')==='true';
   atualizarCorChk();
   rC();rB();rInd();rBonusTech();
-  // Restaura sessão local
-  (function(){
-    var s=localStorage.getItem('hub_session');
-    if(s){try{
-      var sess=JSON.parse(s);
-      var u=HUB_AUTH[sess.email];
-      if(u){aplicarSessao(sess.email,u.role);var _t=localStorage.getItem('hub_tab');if(_t)setTimeout(function(){sw(_t);},50);return;}
-    }catch(e){localStorage.removeItem('hub_session');}}
-    // Nenhuma sessão local por senha: verifica se há sessão Google (Supabase Auth)
-    restaurarSessaoGoogle();
-  })();
+  // Restaura sessão (login por senha ou Google), via Supabase Auth
+  restaurarSessao();
 });
 
 var techDadosPendentes=null;
