@@ -2150,13 +2150,16 @@ function abrirDetalheAdim(parceiro, mesIdx){
   const totalCom=itens.reduce((s,i)=>s+i.comissao,0);
   const totalBase=itens.reduce((s,i)=>s+i.val,0);
   document.getElementById('biz-det-title').textContent=parceiro+' — '+MESES_LABEL[mesIdx];
-  document.getElementById('biz-det-sub').textContent=itens.length+' cliente'+(itens.length!==1?'s encontrados':'encontrado')+' no relatório de adimplência';
+  const nClientesUnicos=new Set(itens.map(i=>i.cnpj)).size;
+  const subCliente=nClientesUnicos+' cliente'+(nClientesUnicos!==1?'s':'');
+  const subPagto=itens.length!==nClientesUnicos?' ('+itens.length+' pagamentos)':'';
+  document.getElementById('biz-det-sub').textContent=subCliente+subPagto+' encontrado'+(nClientesUnicos!==1?'s':'')+' no relatório de adimplência';
   document.getElementById('biz-det-total').textContent=brl(totalCom);
   document.getElementById('biz-det-total-base').textContent=brl(totalBase);
   document.getElementById('biz-det-base-wrap').style.display='block';
   document.getElementById('biz-det-export-btn').style.display='none';
   document.getElementById('biz-det-export-adim-btn').style.display='inline-flex';
-  document.getElementById('biz-det-thead').innerHTML='<tr><th>Empresa</th><th>CNPJ</th><th style="text-align:right">Valor Pago</th><th style="text-align:right">Comissão</th></tr>';
+  document.getElementById('biz-det-thead').innerHTML='<tr><th>Empresa</th><th>CNPJ</th><th>Cód. Empresa</th><th style="text-align:right">Valor Pago</th><th style="text-align:right">Comissão</th></tr>';
   window._adimDetAtual={parceiro,mesIdx,itens};
   _bizDetKey=parceiro+'__'+mesIdx+'__biz';
   var _chkValBiz=getBizDetChk(_bizDetKey);
@@ -2167,10 +2170,11 @@ function abrirDetalheAdim(parceiro, mesIdx){
   document.getElementById('biz-det-tbody').innerHTML=itens.map(i=>`<tr>
     <td><span style="font-size:13px;font-weight:700;color:var(--n900)">${i.cliente}</span></td>
     <td style="font-size:11px;color:var(--n500);font-family:monospace">${fmtCNPJ(i.cnpj)}</td>
+    <td style="font-size:11px;color:var(--n500)">${i.empresa||'—'}</td>
     <td style="text-align:right;font-size:12px">${brl(i.val)}</td>
     <td style="text-align:right;font-weight:700;color:var(--od)">${brl(i.comissao)}</td>
   </tr>`).join('')+`<tr style="background:var(--ol)">
-    <td colspan="2"><strong>Total</strong></td>
+    <td colspan="3"><strong>Total</strong></td>
     <td style="text-align:right;font-weight:700">${brl(totalBase)}</td>
     <td style="text-align:right;font-weight:700;color:var(--od)">${brl(totalCom)}</td>
   </tr>`;
@@ -3953,10 +3957,18 @@ function registrarAdim(){
         } else {
           v=dadosCnpj[chave];
         }
-        if(!porMes[chave])porMes[chave]={base:0,cnpjs:{}};
+        if(!porMes[chave])porMes[chave]={base:0,cnpjs:{},pagamentos:[]};
         porMes[chave].base+=v;
         if(!porMes[chave].cnpjs[cnpj])porMes[chave].cnpjs[cnpj]={nome:cnpjsGrupo[cnpj],val:0};
         porMes[chave].cnpjs[cnpj].val+=v;
+        // Detalha por código de empresa — cada linha do relatório vira uma linha no detalhe
+        var empresasChave=(mapaAdimPorMesEmpresa[cnpj]||{})[chave]||{};
+        var codsEmpresa=permitidas?permitidas:Object.keys(empresasChave);
+        codsEmpresa.forEach(function(emp){
+          var vEmp=empresasChave[emp]||0;
+          if(vEmp<=0)return;
+          porMes[chave].pagamentos.push({cnpj:cnpj,nome:cnpjsGrupo[cnpj],empresa:emp,val:vEmp});
+        });
       });
     });
 
@@ -3976,13 +3988,12 @@ function registrarAdim(){
       if(!entry){entry={nome:r.parceiro,pol:r.pol,vals:[0,0,0,0,0,0,0,0,0,0,0,0]};target.push(entry);}
       entry.vals[mesIdx]=comissao; // sobrescreve o mês (não soma) — evita duplicar ao reprocessar
 
-      // Detalhe clicável — rateio proporcional da comissão total entre clientes
+      // Detalhe clicável — rateio proporcional da comissão total entre pagamentos (1 linha por cód. empresa)
       var key=r.parceiro+'__'+mesIdx;
       ADIM_DETAIL[key]=[]; // limpa antes de repopular — evita linhas antigas duplicadas
       var pct=base>0?comissao/base:0;
-      Object.keys(porMes[chave].cnpjs).forEach(function(cnpj){
-        var c=porMes[chave].cnpjs[cnpj];
-        ADIM_DETAIL[key].push({cliente:c.nome,cnpj:cnpj,val:c.val,comissao:c.val*pct});
+      porMes[chave].pagamentos.forEach(function(p){
+        ADIM_DETAIL[key].push({cliente:p.nome,cnpj:p.cnpj,empresa:p.empresa,val:p.val,comissao:p.val*pct});
       });
     });
 
@@ -4017,10 +4028,18 @@ function registrarAdim(){
             } else {
               v=dadosCnpj[chave];
             }
-            if(!porMes[chave])porMes[chave]={base:0,cnpjs:{}};
+            if(!porMes[chave])porMes[chave]={base:0,cnpjs:{},pagamentos:[]};
             porMes[chave].base+=v;
             if(!porMes[chave].cnpjs[cnpj])porMes[chave].cnpjs[cnpj]={nome:cnpjsGrupo[cnpj],val:0};
             porMes[chave].cnpjs[cnpj].val+=v;
+            // Detalha por código de empresa — cada linha do relatório vira uma linha no detalhe
+            var empresasChaveSave=(mapaAdimPorMesEmpresaSave[cnpj]||{})[chave]||{};
+            var codsEmpresaSave=permitidasSave?permitidasSave:Object.keys(empresasChaveSave);
+            codsEmpresaSave.forEach(function(emp){
+              var vEmp=empresasChaveSave[emp]||0;
+              if(vEmp<=0)return;
+              porMes[chave].pagamentos.push({cnpj:cnpj,nome:cnpjsGrupo[cnpj],empresa:emp,val:vEmp});
+            });
           });
         });
         Object.keys(porMes).forEach(function(chave){
@@ -4035,10 +4054,9 @@ function registrarAdim(){
           var pct=base>0?comissao/base:0;
           var parceiroIdR=resolveParceiroId(r.parceiro);
           inserts.push({parceiro:r.parceiro,tipo:'business',mes:mesIdx+1,ano:ano,total:comissao,politica:polBizR.pol,qtd_bonus:0,base_receita:base,arquivo:arq,parceiro_id:parceiroIdR});
-          // Detalhe por loja
-          Object.keys(porMes[chave].cnpjs).forEach(function(cnpj){
-            var c=porMes[chave].cnpjs[cnpj];
-            detalhes.push({parceiro:r.parceiro,tipo:'business',mes:mesIdx+1,ano:ano,arquivo:arq,cliente:c.nome,cnpj:cnpj,base_receita:c.val,comissao:c.val*pct,parceiro_id:parceiroIdR});
+          // Detalhe por pagamento (cnpj + cód. empresa)
+          porMes[chave].pagamentos.forEach(function(p){
+            detalhes.push({parceiro:r.parceiro,tipo:'business',mes:mesIdx+1,ano:ano,arquivo:arq,cliente:p.nome,cnpj:p.cnpj,empresa:p.empresa,base_receita:p.val,comissao:p.val*pct,parceiro_id:parceiroIdR});
           });
         });
       });
@@ -4408,11 +4426,11 @@ function exportAdimDet(){
   var itens=window._adimDetAtual.itens;
   var totalBase=itens.reduce(function(s,i){return s+(i.val||0);},0);
   var totalCom=itens.reduce(function(s,i){return s+(i.comissao||0);},0);
-  var data=[['Empresa','CNPJ','Valor Pago (R$)','Comissão (R$)']];
-  itens.forEach(function(i){data.push([i.cliente,fmtCNPJ(i.cnpj),Number(i.val.toFixed(2)),Number(i.comissao.toFixed(2))]);});
-  data.push(['Total','',Number(totalBase.toFixed(2)),Number(totalCom.toFixed(2))]);
+  var data=[['Empresa','CNPJ','Cód. Empresa','Valor Pago (R$)','Comissão (R$)']];
+  itens.forEach(function(i){data.push([i.cliente,fmtCNPJ(i.cnpj),i.empresa||'',Number(i.val.toFixed(2)),Number(i.comissao.toFixed(2))]);});
+  data.push(['Total','','',Number(totalBase.toFixed(2)),Number(totalCom.toFixed(2))]);
   var ws=XLSX.utils.aoa_to_sheet(data);
-  ws['!cols']=[{wch:42},{wch:22},{wch:16},{wch:16}];
+  ws['!cols']=[{wch:42},{wch:22},{wch:14},{wch:16},{wch:16}];
   var wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,parceiro.slice(0,31));
   var MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -4434,7 +4452,7 @@ async function carregarDetalhesBusinessSupabase(){
       var mesIdx=r.mes-1;
       var key=r.parceiro+'__'+mesIdx;
       if(!ADIM_DETAIL[key])ADIM_DETAIL[key]=[];
-      ADIM_DETAIL[key].push({cliente:r.cliente||'',cnpj:r.cnpj||'',val:r.base_receita||0,comissao:r.comissao||0});
+      ADIM_DETAIL[key].push({cliente:r.cliente||'',cnpj:r.cnpj||'',empresa:r.empresa||'',val:r.base_receita||0,comissao:r.comissao||0});
     });
     rB();
   }catch(e){console.warn('Supabase detalhe biz:',e.message);}
