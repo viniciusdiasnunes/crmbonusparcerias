@@ -868,12 +868,32 @@ body.viewer-mode .edit-only{display:none!important;}
         </div>
         <div id="m-tech-fields" style="display:none">
           <div class="fg" style="margin-top:8px">
-            <div class="fgrp"><label class="fl">Valor por bônus (R$)</label><input class="fi" id="m-tech-val" type="number" step="0.001" placeholder="0.05"></div>
+            <div class="fgrp"><label class="fl">Tipo de fórmula</label><select class="fi" id="m-tech-formula" onchange="toggleTechFormula()"><option value="fixo_por_bonus">Fixo por bônus</option><option value="base_x_percentual">Base × percentual</option></select></div>
+            <div class="fgrp"><label class="fl" id="m-tech-val-label">Valor por bônus (R$)</label><input class="fi" id="m-tech-val" type="number" step="0.001" placeholder="0.05"></div>
+          </div>
+          <div class="fg" id="m-tech-percentual-row" style="margin-top:10px;display:none">
+            <div class="fgrp"><label class="fl">Percentual (%)</label><input class="fi" id="m-tech-percentual" type="number" step="0.1" placeholder="10"></div>
+            <div class="fgrp full"></div>
+          </div>
+          <div class="fg" style="margin-top:10px">
             <div class="fgrp full"><label class="fl">Observações</label><input class="fi" id="m-obs-tech" placeholder="Observações sobre este contrato..."></div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px">
             <div class="fgrp"><label class="fl">Início da vigência</label><input class="fi" id="m-tech-vig-ini" type="date"></div>
             <div class="fgrp"><label class="fl">Fim da vigência</label><input class="fi" id="m-tech-vig-fim" type="date"></div>
+          </div>
+          <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--bdr)">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--n500);margin-bottom:4px">Variantes de integração</div>
+            <div style="font-size:10px;color:var(--n500);margin-bottom:8px">Cada linha é um texto que pode aparecer na coluna "Integração" do relatório de bônus. Variantes com o mesmo Grupo aparecem agrupadas na tela de Comissão de Integração.</div>
+            <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 50px 26px;gap:6px;margin-bottom:4px">
+              <div style="font-size:9px;color:var(--n300);text-transform:uppercase">Texto no relatório</div>
+              <div style="font-size:9px;color:var(--n300);text-transform:uppercase">Rótulo exibido</div>
+              <div style="font-size:9px;color:var(--n300);text-transform:uppercase">Grupo</div>
+              <div style="font-size:9px;color:var(--n300);text-transform:uppercase">Ativo</div>
+              <div></div>
+            </div>
+            <div id="m-tech-aliases-tbody"></div>
+            <button type="button" class="btn btn-g" style="margin-top:2px;font-size:11px;padding:4px 10px" onclick="addAliasRow()">+ Adicionar variante</button>
           </div>
         </div>
       </div>
@@ -885,12 +905,30 @@ body.viewer-mode .edit-only{display:none!important;}
         </div>
         <div id="m-biz-fields" style="display:none">
           <div class="fg" style="margin-top:8px">
-            <div class="fgrp"><label class="fl">Percentual (%)</label><input class="fi" id="m-biz-pct" type="number" step="0.1" placeholder="10"></div>
+            <div class="fgrp"><label class="fl">Tipo de comissão</label><select class="fi" id="m-biz-formula" onchange="toggleBizFormula()"><option value="percentual_fixo">Percentual fixo</option><option value="escalonado_receita">Escalonado por receita</option><option value="escalonado_lojas">Escalonado por lojas</option></select></div>
+            <div class="fgrp" id="m-biz-pct-wrap"><label class="fl">Percentual (%)</label><input class="fi" id="m-biz-pct" type="number" step="0.1" placeholder="10"></div>
+          </div>
+          <div id="m-biz-faixas-wrap" style="margin-top:10px;display:none">
+            <div style="display:grid;grid-template-columns:1fr 1fr 26px;gap:6px;margin-bottom:4px">
+              <div style="font-size:9px;color:var(--n300);text-transform:uppercase" id="m-biz-faixa-col1">Até (R$)</div>
+              <div style="font-size:9px;color:var(--n300);text-transform:uppercase">Percentual (%)</div>
+              <div></div>
+            </div>
+            <div id="m-biz-faixas-tbody"></div>
+            <button type="button" class="btn btn-g" style="margin-top:2px;font-size:11px;padding:4px 10px" onclick="addFaixaRow()">+ Adicionar faixa</button>
+          </div>
+          <div class="fg" style="margin-top:10px">
             <div class="fgrp full"><label class="fl">Observações</label><input class="fi" id="m-obs-biz" placeholder="Observações sobre este contrato..."></div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px">
             <div class="fgrp"><label class="fl">Início da vigência</label><input class="fi" id="m-biz-vig-ini" type="date"></div>
             <div class="fgrp"><label class="fl">Fim da vigência</label><input class="fi" id="m-biz-vig-fim" type="date"></div>
+          </div>
+          <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--bdr)">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--n500);margin-bottom:4px">Filtro de empresas (relatório de adimplência)</div>
+            <div style="font-size:10px;color:var(--n500);margin-bottom:8px">Opcional. Se preenchido, esse parceiro só recebe comissão sobre pagamentos feitos às empresas listadas aqui (Cd.Empresa do relatório). Deixe vazio para considerar todos os pagamentos normalmente.</div>
+            <div id="m-empresa-filtro-tbody"></div>
+            <button type="button" class="btn btn-g" style="margin-top:2px;font-size:11px;padding:4px 10px" onclick="addEmpresaFiltroRow()">+ Adicionar filtro</button>
           </div>
         </div>
       </div>
@@ -1012,6 +1050,8 @@ function aplicarSessao(email,role){
   if(tabLogs)tabLogs.style.display=role==='admin'?'':'none';
   carregarUsuariosSupabase();
   carregarAliasesSupabase();
+  carregarBizFaixasSupabase().then(function(){buildPolBiz();});
+  carregarEmpresaFiltroSupabase();
   carregarParceirosSupabase().then(function(){buildTechMap();buildPolBiz();});
   migrarHistoricoSupabase();
   carregarIndicacoesSupabase();
@@ -1433,7 +1473,7 @@ function showSync(msg, ok=true){
 // Carrega parceiros do Supabase e mescla com os locais (locais têm prioridade de exibição se Supabase vazio)
 async function carregarParceirosSupabase(){
   try{
-    const {data,error}=await sb.from('parceiros').select('id,nome,cnpj,tipo,politica,status,contato_comercial,email_financeiro,observacoes,tech_val,tech_pol,tech_vig,tech_vig_ini,tech_vig_fim,biz_pct,biz_pol,biz_vig,biz_vig_ini,biz_vig_fim,renovacao_automatica').order('id');
+    const {data,error}=await sb.from('parceiros').select('id,nome,cnpj,tipo,politica,status,contato_comercial,email_financeiro,observacoes,tech_val,tech_pol,tech_vig,tech_vig_ini,tech_vig_fim,tech_formula_tipo,tech_percentual,biz_pct,biz_pol,biz_vig,biz_vig_ini,biz_vig_fim,biz_formula_tipo,renovacao_automatica').order('id');
     if(error)throw error;
     if(data&&data.length>0){
       console.log('DEBUG parceiro[0]:', JSON.stringify(data[0]));
@@ -1446,8 +1486,8 @@ async function carregarParceirosSupabase(){
         cont:r.contato_comercial||'',
         email:r.email_financeiro||'',
         obs:r.observacoes||'',
-        tech:r.tech_val?{pol:r.tech_pol||'',val:r.tech_val,vigIni:r.tech_vig_ini||'',vigFim:r.tech_vig_fim||''}:null,
-        biz:r.biz_pct?{pol:r.biz_pol||'',pct:r.biz_pct,vigIni:r.biz_vig_ini||'',vigFim:r.biz_vig_fim||''}:null,
+        tech:r.tech_val?{pol:r.tech_pol||'',val:r.tech_val,vigIni:r.tech_vig_ini||'',vigFim:r.tech_vig_fim||'',formulaTipo:r.tech_formula_tipo||'fixo_por_bonus',percentual:r.tech_percentual}:null,
+        biz:r.biz_pct?{pol:r.biz_pol||'',pct:r.biz_pct,vigIni:r.biz_vig_ini||'',vigFim:r.biz_vig_fim||'',formulaTipo:r.biz_formula_tipo||'percentual_fixo'}:null,
         renovacaoAuto:!!r.renovacao_automatica,
         _sbId:r.id,
       }));
@@ -1466,13 +1506,31 @@ async function carregarParceirosSupabase(){
 var ALIAS_TO_ID = {};
 var WAKE_ID = null;
 
+// Metadados de agrupamento/relatório por alias — substitui INTEG_ALIAS_MAP + LINX_GROUPS + LINX_LABELS + SEM_CONTRATO_ATIVO.
+// Chave = alias em minúsculas. Valor = {parceiroId, bucketNome, bucketLabel, groupLabel, ordem, ativo}.
+// bucketNome é o valor gravado em comissoes.parceiro (mantém compat com histórico já salvo);
+// bucketLabel é o rótulo exibido; groupLabel agrupa visualmente (ex.: "Linx Enterprise"), null = balde solto.
+var ALIAS_BUCKET = {};
+
 // Carrega os apelidos conhecidos de parceiro (substitui os mapas NOME_LEGADO/INTEG_ALIAS_MAP como fonte única).
 async function carregarAliasesSupabase(){
   try{
-    const {data,error}=await sb.from('parceiro_aliases').select('parceiro_id,alias');
+    const {data,error}=await sb.from('parceiro_aliases').select('parceiro_id,alias,bucket_nome,bucket_label,group_label,ordem,ativo');
     if(error)throw error;
     ALIAS_TO_ID={};
-    (data||[]).forEach(function(r){ ALIAS_TO_ID[String(r.alias).toLowerCase().trim()]=r.parceiro_id; });
+    ALIAS_BUCKET={};
+    (data||[]).forEach(function(r){
+      const key=String(r.alias).toLowerCase().trim();
+      ALIAS_TO_ID[key]=r.parceiro_id;
+      ALIAS_BUCKET[key]={
+        parceiroId:r.parceiro_id,
+        bucketNome:r.bucket_nome||r.alias,
+        bucketLabel:r.bucket_label||r.bucket_nome||r.alias,
+        groupLabel:r.group_label||null,
+        ordem:r.ordem||0,
+        ativo:r.ativo!==false
+      };
+    });
   }catch(e){ console.warn('Supabase aliases:',e.message); }
 }
 
@@ -1519,11 +1577,14 @@ async function salvarSupabase(d){
       tech_pol:d.tech?d.tech.pol||null:null,
       tech_vig_ini:d.tech?d.tech.vigIni||null:null,
       tech_vig_fim:d.tech?d.tech.vigFim||null:null,
+      tech_formula_tipo:d.tech?(d.tech.formulaTipo||'fixo_por_bonus'):'fixo_por_bonus',
+      tech_percentual:d.tech?d.tech.percentual||null:null,
       renovacao_automatica:d.renovacaoAuto||false,
       biz_pct:d.biz?d.biz.pct:null,
       biz_pol:d.biz?d.biz.pol||null:null,
       biz_vig_ini:d.biz?d.biz.vigIni||null:null,
       biz_vig_fim:d.biz?d.biz.vigFim||null:null,
+      biz_formula_tipo:d.biz?(d.biz.formulaTipo||'percentual_fixo'):'percentual_fixo',
     };
     let res;
     if(d._sbId){
@@ -2530,10 +2591,208 @@ function toggleContrato(t){
   const on=document.getElementById(`m-${t}-on`).checked;
   document.getElementById(`m-${t}-fields`).style.display=on?'grid':'none';
 }
+
+// ── Variantes de integração (parceiro_aliases) — editadas junto com o parceiro ──
+var _mAliases=[];      // {sbId(null=novo), alias, bucketLabel, groupLabel, ativo, bucketNome, ordem}
+var _mAliasesRemovidos=[]; // sbIds de linhas originais removidas nesta edição
+function renderAliasRows(){
+  const tbody=document.getElementById('m-tech-aliases-tbody');
+  if(!tbody)return;
+  if(!_mAliases.length){
+    tbody.innerHTML='<div style="font-size:11px;color:var(--n300);padding:4px 0 8px">Nenhuma variante cadastrada — o relatório só reconhece o nome exato do parceiro.</div>';
+    return;
+  }
+  tbody.innerHTML=_mAliases.map(function(a,i){
+    return '<div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 50px 26px;gap:6px;align-items:center;margin-bottom:6px">'
+      +'<input class="fi" style="font-size:11px;padding:4px 6px" value="'+escHtml(a.alias)+'" placeholder="ex: linx degust" oninput="_mAliasEdit('+i+',\'alias\',this.value)">'
+      +'<input class="fi" style="font-size:11px;padding:4px 6px" value="'+escHtml(a.bucketLabel)+'" placeholder="ex: Degust" oninput="_mAliasEdit('+i+',\'bucketLabel\',this.value)">'
+      +'<input class="fi" style="font-size:11px;padding:4px 6px" value="'+escHtml(a.groupLabel||'')+'" placeholder="opcional" oninput="_mAliasEdit('+i+',\'groupLabel\',this.value)">'
+      +'<label class="toggle" style="transform:scale(0.75)"><input type="checkbox" '+(a.ativo?'checked':'')+' onchange="_mAliasEdit('+i+',\'ativo\',this.checked)"><span class="slider"></span></label>'
+      +'<button type="button" class="xb" style="font-size:14px" onclick="_mAliasRemove('+i+')" title="Remover variante">×</button>'
+    +'</div>';
+  }).join('');
+}
+function _mAliasEdit(i,field,val){ if(_mAliases[i])_mAliases[i][field]=val; }
+function _mAliasRemove(i){
+  const a=_mAliases[i];
+  if(a&&a.sbId)_mAliasesRemovidos.push(a.sbId);
+  _mAliases.splice(i,1);
+  renderAliasRows();
+}
+function addAliasRow(){
+  _mAliases.push({sbId:null,alias:'',bucketLabel:'',groupLabel:'',ativo:true,bucketNome:null,ordem:_mAliases.length});
+  renderAliasRows();
+}
+async function carregarAliasesDoParceiro(parceiroId){
+  _mAliases=[];_mAliasesRemovidos=[];
+  try{
+    const {data,error}=await sb.from('parceiro_aliases').select('id,alias,bucket_nome,bucket_label,group_label,ordem,ativo').eq('parceiro_id',parceiroId).order('ordem');
+    if(error)throw error;
+    _mAliases=(data||[]).map(function(r){
+      return {sbId:r.id,alias:r.alias,bucketLabel:r.bucket_label||r.alias,groupLabel:r.group_label||'',ativo:r.ativo!==false,bucketNome:r.bucket_nome||r.alias,ordem:r.ordem||0};
+    });
+  }catch(e){ console.warn('Supabase parceiro_aliases (edição):',e.message); }
+  renderAliasRows();
+}
+// Salva as variantes de integração deste parceiro no Supabase (chamado depois de salvar o parceiro em si).
+async function salvarAliasesDoParceiro(parceiroId){
+  try{
+    for(const sbId of _mAliasesRemovidos){
+      await sb.from('parceiro_aliases').delete().eq('id',sbId);
+    }
+    for(let i=0;i<_mAliases.length;i++){
+      const a=_mAliases[i];
+      const aliasTxt=(a.alias||'').trim();
+      if(!aliasTxt)continue; // linha em branco — ignora
+      const bucketLabel=(a.bucketLabel||aliasTxt).trim();
+      const groupLabel=(a.groupLabel||'').trim()||null;
+      // Mantém o bucket_nome já existente (não quebra histórico já salvo em comissoes);
+      // só gera um novo para variantes recém-criadas.
+      const bucketNome=a.bucketNome||(groupLabel?groupLabel+' — '+bucketLabel:bucketLabel);
+      const payload={parceiro_id:parceiroId,alias:aliasTxt,bucket_nome:bucketNome,bucket_label:bucketLabel,group_label:groupLabel,ordem:i,ativo:!!a.ativo};
+      if(a.sbId){
+        await sb.from('parceiro_aliases').update(payload).eq('id',a.sbId);
+      } else {
+        await sb.from('parceiro_aliases').insert(payload);
+      }
+    }
+    await carregarAliasesSupabase();
+  }catch(e){ showSync('⚠ Erro ao salvar variantes de integração: '+e.message,false); }
+}
+
+// ── Tipo de fórmula Tech/Biz ──
+function toggleTechFormula(){
+  const tipo=document.getElementById('m-tech-formula').value;
+  const isBase=tipo==='base_x_percentual';
+  document.getElementById('m-tech-percentual-row').style.display=isBase?'grid':'none';
+  document.getElementById('m-tech-val-label').textContent=isBase?'Valor base (R$)':'Valor por bônus (R$)';
+}
+function toggleBizFormula(){
+  const tipo=document.getElementById('m-biz-formula').value;
+  const isEscalonado=tipo==='escalonado_receita'||tipo==='escalonado_lojas';
+  document.getElementById('m-biz-pct-wrap').style.display=isEscalonado?'none':'block';
+  document.getElementById('m-biz-faixas-wrap').style.display=isEscalonado?'block':'none';
+  document.getElementById('m-biz-faixa-col1').textContent=tipo==='escalonado_lojas'?'Até (nº lojas)':'Até (R$)';
+  renderFaixaRows();
+}
+
+// ── Faixas de comissão escalonada (parceiro_biz_faixas) ──
+var _mFaixas=[];         // {sbId(null=novo), limiteAte(null=última faixa), percentual}
+var _mFaixasRemovidas=[];
+function renderFaixaRows(){
+  const tbody=document.getElementById('m-biz-faixas-tbody');
+  if(!tbody)return;
+  tbody.innerHTML=_mFaixas.map(function(f,i){
+    return '<div style="display:grid;grid-template-columns:1fr 1fr 26px;gap:6px;align-items:center;margin-bottom:6px">'
+      +'<input class="fi" style="font-size:11px;padding:4px 6px" type="number" step="0.01" value="'+(f.limiteAte==null?'':f.limiteAte)+'" placeholder="(deixe vazio = acima de)" oninput="_mFaixaEdit('+i+',\'limiteAte\',this.value)">'
+      +'<input class="fi" style="font-size:11px;padding:4px 6px" type="number" step="0.1" value="'+(f.percentual==null?'':f.percentual)+'" placeholder="%" oninput="_mFaixaEdit('+i+',\'percentual\',this.value)">'
+      +'<button type="button" class="xb" style="font-size:14px" onclick="_mFaixaRemove('+i+')" title="Remover faixa">×</button>'
+    +'</div>';
+  }).join('');
+}
+function _mFaixaEdit(i,field,val){
+  if(!_mFaixas[i])return;
+  _mFaixas[i][field]=(field==='limiteAte'&&val==='')?null:parseFloat(val);
+}
+function _mFaixaRemove(i){
+  const f=_mFaixas[i];
+  if(f&&f.sbId)_mFaixasRemovidas.push(f.sbId);
+  _mFaixas.splice(i,1);
+  renderFaixaRows();
+}
+function addFaixaRow(){
+  _mFaixas.push({sbId:null,limiteAte:null,percentual:null});
+  renderFaixaRows();
+}
+async function carregarFaixasDoParceiro(parceiroId){
+  _mFaixas=[];_mFaixasRemovidas=[];
+  try{
+    const {data,error}=await sb.from('parceiro_biz_faixas').select('id,ordem,limite_ate,percentual').eq('parceiro_id',parceiroId).order('ordem');
+    if(error)throw error;
+    _mFaixas=(data||[]).map(function(r){return{sbId:r.id,limiteAte:r.limite_ate,percentual:r.percentual};});
+  }catch(e){ console.warn('Supabase parceiro_biz_faixas (edição):',e.message); }
+  renderFaixaRows();
+}
+async function salvarFaixasDoParceiro(parceiroId,tipoLimite){
+  try{
+    for(const sbId of _mFaixasRemovidas){
+      await sb.from('parceiro_biz_faixas').delete().eq('id',sbId);
+    }
+    for(let i=0;i<_mFaixas.length;i++){
+      const f=_mFaixas[i];
+      if(f.percentual==null||isNaN(f.percentual))continue;
+      const payload={parceiro_id:parceiroId,ordem:i,limite_ate:f.limiteAte,percentual:f.percentual,tipo_limite:tipoLimite};
+      if(f.sbId){
+        await sb.from('parceiro_biz_faixas').update(payload).eq('id',f.sbId);
+      } else {
+        await sb.from('parceiro_biz_faixas').insert(payload);
+      }
+    }
+    await carregarBizFaixasSupabase();
+  }catch(e){ showSync('⚠ Erro ao salvar faixas de comissão: '+e.message,false); }
+}
+
+// ── Filtro de empresas (parceiro_empresa_filtro) ──
+var _mEmpresaFiltro=[];       // {sbId(null=novo), cdEmpresa, observacao}
+var _mEmpresaFiltroRemovidos=[];
+function renderEmpresaFiltroRows(){
+  const tbody=document.getElementById('m-empresa-filtro-tbody');
+  if(!tbody)return;
+  if(!_mEmpresaFiltro.length){
+    tbody.innerHTML='<div style="font-size:11px;color:var(--n300);padding:2px 0 6px">Nenhum filtro — considera pagamentos de qualquer empresa.</div>';
+    return;
+  }
+  tbody.innerHTML=_mEmpresaFiltro.map(function(f,i){
+    return '<div style="display:grid;grid-template-columns:110px 1fr 26px;gap:6px;align-items:center;margin-bottom:6px">'
+      +'<input class="fi" style="font-size:11px;padding:4px 6px" value="'+escHtml(f.cdEmpresa)+'" placeholder="Cd.Empresa" oninput="_mEmpresaFiltroEdit('+i+',\'cdEmpresa\',this.value)">'
+      +'<input class="fi" style="font-size:11px;padding:4px 6px" value="'+escHtml(f.observacao||'')+'" placeholder="observação (opcional)" oninput="_mEmpresaFiltroEdit('+i+',\'observacao\',this.value)">'
+      +'<button type="button" class="xb" style="font-size:14px" onclick="_mEmpresaFiltroRemove('+i+')" title="Remover filtro">×</button>'
+    +'</div>';
+  }).join('');
+}
+function _mEmpresaFiltroEdit(i,field,val){ if(_mEmpresaFiltro[i])_mEmpresaFiltro[i][field]=val; }
+function _mEmpresaFiltroRemove(i){
+  const f=_mEmpresaFiltro[i];
+  if(f&&f.sbId)_mEmpresaFiltroRemovidos.push(f.sbId);
+  _mEmpresaFiltro.splice(i,1);
+  renderEmpresaFiltroRows();
+}
+function addEmpresaFiltroRow(){
+  _mEmpresaFiltro.push({sbId:null,cdEmpresa:'',observacao:''});
+  renderEmpresaFiltroRows();
+}
+async function carregarEmpresaFiltroDoParceiro(parceiroId){
+  _mEmpresaFiltro=[];_mEmpresaFiltroRemovidos=[];
+  try{
+    const {data,error}=await sb.from('parceiro_empresa_filtro').select('id,cd_empresa,observacao').eq('parceiro_id',parceiroId);
+    if(error)throw error;
+    _mEmpresaFiltro=(data||[]).map(function(r){return{sbId:r.id,cdEmpresa:r.cd_empresa,observacao:r.observacao||''};});
+  }catch(e){ console.warn('Supabase parceiro_empresa_filtro (edição):',e.message); }
+  renderEmpresaFiltroRows();
+}
+async function salvarEmpresaFiltroDoParceiro(parceiroId){
+  try{
+    for(const sbId of _mEmpresaFiltroRemovidos){
+      await sb.from('parceiro_empresa_filtro').delete().eq('id',sbId);
+    }
+    for(const f of _mEmpresaFiltro){
+      const cd=(f.cdEmpresa||'').trim();
+      if(!cd)continue;
+      const payload={parceiro_id:parceiroId,cd_empresa:cd,observacao:(f.observacao||'').trim()||null};
+      if(f.sbId){
+        await sb.from('parceiro_empresa_filtro').update(payload).eq('id',f.sbId);
+      } else {
+        await sb.from('parceiro_empresa_filtro').insert(payload);
+      }
+    }
+    await carregarEmpresaFiltroSupabase();
+  }catch(e){ showSync('⚠ Erro ao salvar filtro de empresas: '+e.message,false); }
+}
+
 function openM(mode,id=null){
   eid=id;
   document.getElementById('m-title').textContent=mode==='add'?'Novo Parceiro':'Editar Parceiro';
-  const fields=['m-nome','m-cnpj','m-cont','m-tel','m-email','m-obs-tech','m-obs-biz','m-tech-val','m-tech-vig-ini','m-tech-vig-fim','m-biz-pct','m-biz-vig-ini','m-biz-vig-fim'];
+  const fields=['m-nome','m-cnpj','m-cont','m-tel','m-email','m-obs-tech','m-obs-biz','m-tech-val','m-tech-vig-ini','m-tech-vig-fim','m-tech-percentual','m-biz-pct','m-biz-vig-ini','m-biz-vig-fim'];
   if(mode==='edit'&&id){
     const p=P.find(x=>x.id===id);if(!p)return;
     // Separar cont em nome e tel (formato "Nome 11 99999-9999")
@@ -2551,17 +2810,50 @@ function openM(mode,id=null){
     const techOn=!!p.tech;
     document.getElementById('m-tech-on').checked=techOn;
     document.getElementById('m-tech-fields').style.display=techOn?'grid':'none';
-    if(p.tech){document.getElementById('m-tech-val').value=p.tech.val||'';document.getElementById('m-tech-vig-ini').value=p.tech.vigIni||'';document.getElementById('m-tech-vig-fim').value=p.tech.vigFim||'';}
+    if(p.tech){
+      document.getElementById('m-tech-val').value=p.tech.val||'';
+      document.getElementById('m-tech-vig-ini').value=p.tech.vigIni||'';
+      document.getElementById('m-tech-vig-fim').value=p.tech.vigFim||'';
+      document.getElementById('m-tech-formula').value=p.tech.formulaTipo||'fixo_por_bonus';
+      document.getElementById('m-tech-percentual').value=p.tech.percentual||'';
+    } else {
+      document.getElementById('m-tech-formula').value='fixo_por_bonus';
+      document.getElementById('m-tech-percentual').value='';
+    }
+    toggleTechFormula();
     document.getElementById('m-renovacao-auto').checked=!!p.renovacaoAuto;
     const bizOn=!!p.biz;
     document.getElementById('m-biz-on').checked=bizOn;
     document.getElementById('m-biz-fields').style.display=bizOn?'grid':'none';
-    if(p.biz){document.getElementById('m-biz-pct').value=p.biz.pct||'';document.getElementById('m-biz-vig-ini').value=p.biz.vigIni||'';document.getElementById('m-biz-vig-fim').value=p.biz.vigFim||'';}
+    if(p.biz){
+      document.getElementById('m-biz-pct').value=p.biz.pct||'';
+      document.getElementById('m-biz-vig-ini').value=p.biz.vigIni||'';
+      document.getElementById('m-biz-vig-fim').value=p.biz.vigFim||'';
+      document.getElementById('m-biz-formula').value=p.biz.formulaTipo||'percentual_fixo';
+    } else {
+      document.getElementById('m-biz-formula').value='percentual_fixo';
+    }
+    toggleBizFormula();
+    if(p._sbId){
+      carregarAliasesDoParceiro(p._sbId);
+      carregarFaixasDoParceiro(p._sbId);
+      carregarEmpresaFiltroDoParceiro(p._sbId);
+    } else {
+      _mAliases=[];_mAliasesRemovidos=[];renderAliasRows();
+      _mFaixas=[];_mFaixasRemovidas=[];renderFaixaRows();
+      _mEmpresaFiltro=[];_mEmpresaFiltroRemovidos=[];renderEmpresaFiltroRows();
+    }
   } else {
     fields.forEach(f=>document.getElementById(f).value='');
     document.getElementById('m-status').value='Assinado';
     ['m-tech-on','m-biz-on'].forEach(f=>document.getElementById(f).checked=false);
     ['m-tech-fields','m-biz-fields'].forEach(f=>document.getElementById(f).style.display='none');
+    document.getElementById('m-tech-formula').value='fixo_por_bonus';
+    document.getElementById('m-biz-formula').value='percentual_fixo';
+    toggleTechFormula();toggleBizFormula();
+    _mAliases=[];_mAliasesRemovidos=[];renderAliasRows();
+    _mFaixas=[];_mFaixasRemovidas=[];renderFaixaRows();
+    _mEmpresaFiltro=[];_mEmpresaFiltroRemovidos=[];renderEmpresaFiltroRows();
   }
   document.getElementById('modal').classList.add('open');
 }
@@ -2579,23 +2871,35 @@ async function salvar(){
     prod:'',cont:contVal,
     email:document.getElementById('m-email').value,obs:document.getElementById('m-obs-tech').value||document.getElementById('m-obs-biz').value,
     obstech:document.getElementById('m-obs-tech').value,obsbiz:document.getElementById('m-obs-biz').value,
-    tech:techOn?{pol:'',val:parseFloat(document.getElementById('m-tech-val').value)||0.05,vigIni:document.getElementById('m-tech-vig-ini').value,vigFim:document.getElementById('m-tech-vig-fim').value}:null,
-    biz:bizOn?{pol:'',pct:parseFloat(document.getElementById('m-biz-pct').value)||10,vigIni:document.getElementById('m-biz-vig-ini').value,vigFim:document.getElementById('m-biz-vig-fim').value}:null,
+    tech:techOn?{pol:'',val:parseFloat(document.getElementById('m-tech-val').value)||0.05,vigIni:document.getElementById('m-tech-vig-ini').value,vigFim:document.getElementById('m-tech-vig-fim').value,formulaTipo:document.getElementById('m-tech-formula').value,percentual:parseFloat(document.getElementById('m-tech-percentual').value)||null}:null,
+    biz:bizOn?{pol:'',pct:parseFloat(document.getElementById('m-biz-pct').value)||10,vigIni:document.getElementById('m-biz-vig-ini').value,vigFim:document.getElementById('m-biz-vig-fim').value,formulaTipo:document.getElementById('m-biz-formula').value}:null,
     renovacaoAuto:document.getElementById('m-renovacao-auto').checked,
   };
+  let _sbIdParaAliases=null;
   if(eid){
     const idx=P.findIndex(p=>p.id===eid);
     if(idx>=0){
       d._sbId=P[idx]._sbId;
       Object.assign(P[idx],d);
       await salvarSupabase(P[idx]);
+      _sbIdParaAliases=P[idx]._sbId;
     }
   } else {
     const novo={id:Date.now(),...d};
     P.push(novo);
     const res=await salvarSupabase(novo);
     if(res&&res.id)novo._sbId=res.id;
+    _sbIdParaAliases=novo._sbId;
   }
+  if(_sbIdParaAliases){
+    await salvarAliasesDoParceiro(_sbIdParaAliases);
+    const bizFormulaTipo=document.getElementById('m-biz-formula').value;
+    if(bizFormulaTipo==='escalonado_receita'||bizFormulaTipo==='escalonado_lojas'){
+      await salvarFaixasDoParceiro(_sbIdParaAliases,bizFormulaTipo==='escalonado_lojas'?'lojas':'receita');
+    }
+    await salvarEmpresaFiltroDoParceiro(_sbIdParaAliases);
+  }
+  buildTechMap();buildPolBiz();rBonusTech();
   closeM();rC();
 }
 
@@ -3115,22 +3419,24 @@ function rBonusTech(){
   const sortNome=sortIcon('bt','nome');
   const sortTot=sortIcon('bt','total');
 
-  // Grupos Linx: agrupa visualmente com cabeçalho e subtotal
-  const LINX_GROUPS={
-    'Linx Retail':['Linx Retail — Seta','Linx Retail — Seta V2','Linx Retail — Microvix','Linx Retail — Microvix V2'],
-    'Linx Enterprise':['Linx Enterprise — Millenium','Linx Enterprise — Omni Pos','Linx Enterprise — Linx Pos','Linx Enterprise — Linx Pos V2','Linx Enterprise — Store X']
-  };
-  const LINX_LABELS={
-    'Linx Retail — Seta':'Seta',
-    'Linx Retail — Seta V2':'Seta V2',
-    'Linx Retail — Microvix':'Microvix',
-    'Linx Retail — Microvix V2':'Microvix V2',
-    'Linx Enterprise — Millenium':'Millenium',
-    'Linx Enterprise — Omni Pos':'Omni Pos',
-    'Linx Enterprise — Linx Pos':'Linx Pos',
-    'Linx Enterprise — Linx Pos V2':'Linx Pos V2',
-    'Linx Enterprise — Store X':'Store X'
-  };
+  // Grupos de exibição: montados a partir de ALIAS_BUCKET (tabela parceiro_aliases no Supabase),
+  // não mais de um mapa fixo no código — editar o agrupamento/rótulo agora é uma tela, não um deploy.
+  const LINX_GROUPS={};
+  const LINX_LABELS={};
+  const _bucketOrdem={};
+  Object.keys(ALIAS_BUCKET).forEach(function(alias){
+    const meta=ALIAS_BUCKET[alias];
+    if(!meta.ativo)return;
+    if(!LINX_LABELS[meta.bucketNome])LINX_LABELS[meta.bucketNome]=meta.bucketLabel;
+    if(meta.groupLabel){
+      if(!LINX_GROUPS[meta.groupLabel])LINX_GROUPS[meta.groupLabel]=[];
+      if(!LINX_GROUPS[meta.groupLabel].includes(meta.bucketNome))LINX_GROUPS[meta.groupLabel].push(meta.bucketNome);
+      _bucketOrdem[meta.bucketNome]=meta.ordem;
+    }
+  });
+  Object.keys(LINX_GROUPS).forEach(function(g){
+    LINX_GROUPS[g].sort(function(a,b){return(_bucketOrdem[a]||0)-(_bucketOrdem[b]||0);});
+  });
   const linxNomes=Object.values(LINX_GROUPS).flat();
   const linxRendered=new Set();
 
@@ -3346,6 +3652,34 @@ function normCNPJ(v){return String(v||'').replace(/[^0-9]/g,'').padStart(14,'0')
 function fmtCNPJ(v){var n=String(v||'').replace(/[^0-9]/g,'');if(n.length!==14)return v||'—';return n.slice(0,2)+'.'+n.slice(2,5)+'.'+n.slice(5,8)+'/'+n.slice(8,12)+'-'+n.slice(12);}
 // POL_BIZ é construído dinamicamente dos parceiros cadastrados no banco
 var POL_BIZ={};
+// Faixas de comissão escalonada por parceiro (tabela parceiro_biz_faixas) — substitui a tabela
+// hardcoded da GBR Digital. Chave = parceiro_id.
+var BIZ_FAIXAS={};
+async function carregarBizFaixasSupabase(){
+  try{
+    const {data,error}=await sb.from('parceiro_biz_faixas').select('parceiro_id,ordem,limite_ate,percentual,tipo_limite').order('ordem');
+    if(error)throw error;
+    BIZ_FAIXAS={};
+    (data||[]).forEach(function(r){
+      if(!BIZ_FAIXAS[r.parceiro_id])BIZ_FAIXAS[r.parceiro_id]=[];
+      BIZ_FAIXAS[r.parceiro_id].push({limiteAte:r.limite_ate,percentual:r.percentual,tipoLimite:r.tipo_limite||'receita'});
+    });
+  }catch(e){ console.warn('Supabase parceiro_biz_faixas:',e.message); }
+}
+// Parceiros com filtro de Cd.Empresa no relatório de adimplência (tabela parceiro_empresa_filtro) —
+// substitui o mapa hardcoded EMPRESA_FILTER_PARCEIRO. Chave = parceiro_id.
+var EMPRESA_FILTRO={};
+async function carregarEmpresaFiltroSupabase(){
+  try{
+    const {data,error}=await sb.from('parceiro_empresa_filtro').select('parceiro_id,cd_empresa');
+    if(error)throw error;
+    EMPRESA_FILTRO={};
+    (data||[]).forEach(function(r){
+      if(!EMPRESA_FILTRO[r.parceiro_id])EMPRESA_FILTRO[r.parceiro_id]=[];
+      EMPRESA_FILTRO[r.parceiro_id].push(r.cd_empresa);
+    });
+  }catch(e){ console.warn('Supabase parceiro_empresa_filtro:',e.message); }
+}
 // Parseia string de política escalonada → {pol, tipo:'lojas'|'receita', tiers, fn(base,nLojas)}
 function _parseBizPolEscalonada(polStr){
   if(!polStr)return null;
@@ -3385,23 +3719,49 @@ function _parseBizPolEscalonada(polStr){
   }
   return null;
 }
+// Monta a política biz de UM parceiro (registro de P) → {pol, tipo, fn(base,nLojas)} ou null.
+// Prioridade: (1) faixas cadastradas em parceiro_biz_faixas — fonte estruturada;
+// (2) texto livre em biz.pol (política antiga ainda não migrada para faixas);
+// (3) percentual fixo (biz.pct).
+function _bizEntryFor(p){
+  if(!p||!p.biz)return null;
+  var formulaTipo=p.biz.formulaTipo||'percentual_fixo';
+  if(formulaTipo==='escalonado_receita'||formulaTipo==='escalonado_lojas'){
+    var tiers=(BIZ_FAIXAS[p.id]||[]).slice().sort(function(a,b){
+      var ai=a.limiteAte==null?Infinity:a.limiteAte, bi=b.limiteAte==null?Infinity:b.limiteAte;
+      return ai-bi;
+    });
+    if(tiers.length){
+      var tipo=formulaTipo==='escalonado_lojas'?'lojas':'receita';
+      return{pol:'Escalonado por '+tipo,tipo:tipo,tiers:tiers,
+        fn:function(base,nLojas){
+          var chave=tipo==='lojas'?nLojas:base;
+          for(var i=0;i<tiers.length;i++){
+            if(tiers[i].limiteAte==null||chave<=tiers[i].limiteAte)return base*(tiers[i].percentual/100);
+          }
+          return base*(tiers[tiers.length-1].percentual/100);
+        }};
+    }
+  }
+  var escal=_parseBizPolEscalonada(p.biz.pol||'');
+  if(escal)return escal;
+  var pct=(p.biz.pct||10)/100;
+  return{pol:Math.round(pct*100)+'% receita',tipo:'receita',fn:function(pctV){return function(b){return b*pctV;};}(pct)};
+}
 function buildPolBiz(){
   POL_BIZ={};
   P.forEach(function(p){
-    if(!p.biz)return;
-    var key=p.nome.toLowerCase().trim();
-    var escal=_parseBizPolEscalonada(p.biz.pol||'');
-    if(escal){
-      POL_BIZ[key]=escal;
-    } else {
-      var pct=(p.biz.pct||10)/100;
-      POL_BIZ[key]={pol:Math.round(pct*100)+'% receita',tipo:'receita',fn:function(pctV){return function(b){return b*pctV;};}(pct)};
-    }
-    if(p.nome.toLowerCase().includes('dama')){POL_BIZ['dama33']=POL_BIZ[key];POL_BIZ['dama 33']=POL_BIZ[key];}
-    if(p.nome.toLowerCase().includes('retail manager')){POL_BIZ['alexandre cintra']=POL_BIZ[key];}
+    var entry=_bizEntryFor(p);
+    if(entry)POL_BIZ[p.nome.toLowerCase().trim()]=entry;
   });
-  // GBR Digital escalonado por receita (legado)
-  POL_BIZ['gbr digital']={pol:'Escalonado por receita',tipo:'receita',fn:function(b){return b<=50000?b*0.05:b<=125000?b*0.075:b<=300000?b*0.085:b*0.10;}};
+  // Aliases cadastrados (parceiro_aliases) também resolvem para a política biz do parceiro dono —
+  // substitui as heurísticas de texto (ex.: p.nome.includes('dama')) por dado cadastrado.
+  Object.keys(ALIAS_TO_ID).forEach(function(alias){
+    if(POL_BIZ[alias])return; // já tem entrada direta pelo nome, não sobrescreve
+    var p=P.find(function(x){return x.id===ALIAS_TO_ID[alias];});
+    var entry=_bizEntryFor(p);
+    if(entry)POL_BIZ[alias]=entry;
+  });
 }
 function procAdim(file){
   document.getElementById('adim-fn').textContent='Lendo '+file.name+'...';
@@ -3442,11 +3802,18 @@ function parseDataPgto(raw){
   return null;
 }
 
-// Restrição por Cd.Empresa: parceiros aqui só recebem comissão sobre pagamentos
-// feitos à(s) empresa(s) listada(s). Ex.: Wizos só recebe sobre pagamentos da
-// Di Santinni feitos à e-click (Cd.Empresa = 0101). Afeta APENAS os parceiros
-// listados aqui — todos os demais seguem o cálculo normal, sem filtro.
-var EMPRESA_FILTER_PARCEIRO={'wizos':['0101']};
+// Restrição por Cd.Empresa: parceiros com linhas em parceiro_empresa_filtro (EMPRESA_FILTRO,
+// carregado do Supabase) só recebem comissão sobre pagamentos feitos à(s) empresa(s) cadastrada(s)
+// pra eles (ex.: Wizos só recebe sobre pagamentos da Di Santinni feitos à e-click, Cd.Empresa 0101).
+// Todos os demais parceiros seguem o cálculo normal, sem filtro.
+function empresasPermitidasPara(polKey){
+  var pid=ALIAS_TO_ID[polKey];
+  if(pid==null){
+    var p=P.find(function(x){return x.nome.toLowerCase().trim()===polKey;});
+    if(p)pid=p.id;
+  }
+  return pid!=null?EMPRESA_FILTRO[pid]:null;
+}
 function somaEmpresasPermitidas(porChaveEmpresa,permitidas){
   var soma=0;
   permitidas.forEach(function(emp){soma+=(porChaveEmpresa&&porChaveEmpresa[emp])||0;});
@@ -3467,7 +3834,7 @@ async function calcAdimAsync(rows,arq){
   // Fallback: coluna J (índice 9) do relatório legado "Títulos a Receber"
   var cData=cols.find(function(c){return /data.*pag|dt.*pag|pagamento.*data/i.test(c);});
   if(!cData)cData=cols[9]||null;
-  // Cd.Empresa (normalmente 1ª coluna) — usado apenas pelo filtro EMPRESA_FILTER_PARCEIRO
+  // Cd.Empresa (normalmente 1ª coluna) — usado apenas pelo filtro em parceiro_empresa_filtro
   var cEmpresa=cols.find(function(c){return /cd\.?\s*empresa/i.test(c);})||cols[0];
 
   // Detecta CNPJs com múltiplos parceiros indicadores
@@ -3482,8 +3849,8 @@ async function calcAdimAsync(rows,arq){
 
   // Mapa: cnpj -> {ano_mesIdx -> valor} — só onde Pago > 0
   var mapaAdimPorMes={};
-  // Mesmo mapa, mas detalhado por Cd.Empresa — só é consultado para parceiros
-  // com EMPRESA_FILTER_PARCEIRO (ex.: Wizos). Não altera o cálculo de ninguém mais.
+  // Mesmo mapa, mas detalhado por Cd.Empresa — só é consultado para parceiros com linhas
+  // em parceiro_empresa_filtro (ex.: Wizos). Não altera o cálculo de ninguém mais.
   var mapaAdimPorMesEmpresa={};
   rows.forEach(function(r){
     var cnpj=normCNPJ(r[cCNPJ]);
@@ -3525,7 +3892,7 @@ async function calcAdimAsync(rows,arq){
     var polKey=parceiro.toLowerCase().trim();
     var polBiz=POL_BIZ[polKey]||{pol:'10% receita',fn:function(b){return b*0.10;}};
     var base=0;var encontrados=[];
-    var permitidas=EMPRESA_FILTER_PARCEIRO[polKey];
+    var permitidas=empresasPermitidasPara(polKey);
     Object.keys(group.cnpjs).forEach(function(cnpj){
       var valCnpj;
       if(permitidas){
@@ -3575,7 +3942,7 @@ function registrarAdim(){
 
     // Para cada mês/ano encontrado na planilha, calcular separadamente
     var mapaAdimPorMesEmpresa=adimDadosPendentes.mapaAdimPorMesEmpresa||{};
-    var permitidas=EMPRESA_FILTER_PARCEIRO[polKey];
+    var permitidas=empresasPermitidasPara(polKey);
     var porMes={};
     Object.keys(cnpjsGrupo).forEach(function(cnpj){
       var dadosCnpj=mapaAdimPorMes[cnpj];
@@ -3646,7 +4013,7 @@ function registrarAdim(){
         var polBiz=POL_BIZ[polKey]||{pol:'10% receita',pct:0.10};
         var cnpjsGrupo=r.cnpjsGrupo;
         var mapaAdimPorMesEmpresaSave=adimDadosPendentes.mapaAdimPorMesEmpresa||{};
-        var permitidasSave=EMPRESA_FILTER_PARCEIRO[polKey];
+        var permitidasSave=empresasPermitidasPara(polKey);
         var porMes={};
         Object.keys(cnpjsGrupo).forEach(function(cnpj){
           var dadosCnpj=adimDadosPendentes.mapaAdimPorMes[cnpj];
@@ -3831,7 +4198,11 @@ async function abrirTechDet(parceiro, mesIdx){
     'linx enterprise — store x':['linx store x','Linx Store X'],
   };
 
-  var _isWake=(_pidAbrirTechDet!=null&&_pidAbrirTechDet===WAKE_ID)||(_pidAbrirTechDet==null&&parceiro.toLowerCase()==='wake');
+  var _pObjAbrirTechDet=_pidAbrirTechDet!=null?P.find(function(p){return p.id===_pidAbrirTechDet;}):P.find(function(p){return p.nome.toLowerCase().trim()===parceiro.toLowerCase().trim();});
+  var _techValReal=techValEfetivo(_pObjAbrirTechDet);
+  // Parceiros com fórmula base×percentual (ex.: Wake) recalculam sempre com a taxa correta,
+  // pois registros antigos podem ter sido salvos com a taxa padrão por engano.
+  var _formulaEspecial=!!(_pObjAbrirTechDet&&_pObjAbrirTechDet.tech&&_pObjAbrirTechDet.tech.formulaTipo==='base_x_percentual');
   var _anoAtual=parseInt(document.getElementById('ano-bonus-tech').value)||new Date().getFullYear();
 
   // Monta lista de variantes de nome para buscar
@@ -3868,12 +4239,12 @@ async function abrirTechDet(parceiro, mesIdx){
     var data=_allData, error=res.error;
     if(error){console.error('[TechDet] Erro:',error.message);break;}
     if(!data||!data.length)break;
-    // Para Wake: comissão correta = qtd * 0.075 (R$0,75 × 10%)
+    // Parceiros com fórmula base×percentual (ex.: Wake) recalculam a comissão com a taxa efetiva.
     itens=itens.concat(data.map(function(r){
       var qtdReal=(r.qtd_bonus!=null&&r.qtd_bonus>0)
         ? r.qtd_bonus
-        : (_isWake&&r.comissao>0 ? Math.round(r.comissao/0.075) : (r.comissao>0?Math.round(r.comissao/0.05):0));
-      var comissao=_isWake ? qtdReal*0.075 : (r.comissao||0);
+        : (r.comissao>0 ? Math.round(r.comissao/_techValReal) : 0);
+      var comissao=_formulaEspecial ? qtdReal*_techValReal : (r.comissao||0);
       return{loja:r.cliente||'',cnpj:r.cnpj||'',comissao:comissao,qtd:qtdReal};
     }));
     break; // resultado completo, sem paginação
@@ -3893,7 +4264,7 @@ async function abrirTechDet(parceiro, mesIdx){
     }
     if(resFallback&&resFallback.data){
       var fb=resFallback.data;
-      var fbQtd=fb.qtd_bonus||(_isWake&&fb.total>0?Math.round(fb.total/0.075):(fb.total>0?Math.round(fb.total/0.05):0));
+      var fbQtd=fb.qtd_bonus||(fb.total>0?Math.round(fb.total/_techValReal):0);
       var fbCom=fb.total||0;
       itens=[{loja:'(detalhe por loja não disponível — apenas resumo)',cnpj:'',comissao:fbCom,qtd:fbQtd}];
       console.log('[TechDet] Fallback comissoes:',fb);
@@ -4120,8 +4491,9 @@ var INTEG_ALIAS_MAP={
   'linx microvix v2'       :'Linx Retail — Microvix V2',
   // Linx Enterprise — Millenium
   'linx millenium v2'      :'Linx Enterprise — Millenium',
-  'linx degust'            :'Linx Enterprise — Millenium',
-  'linx degust v2'         :'Linx Enterprise — Millenium',
+  // Linx Degust — produto separado, não faz parte do grupo Linx Enterprise
+  'linx degust'            :'Linx Degust',
+  'linx degust v2'         :'Linx Degust V2',
   // Linx Enterprise — variantes individuais
   'linx omni pos'          :'Linx Enterprise — Omni Pos',
   'linx pos'               :'Linx Enterprise — Linx Pos',
@@ -4141,6 +4513,25 @@ var INTEG_ALIAS_MAP={
 var TECH_POL_MAP={};
 var PARCEIROS_CONTRATO=[];
 
+// Valor efetivo de R$/bônus para um parceiro (registro de P), considerando o tipo de fórmula
+// cadastrado (tech_formula_tipo). 'base_x_percentual' cobre casos como a Wake (R$0,75 × 10%),
+// sem precisar de exceção hardcoded por parceiro.
+function techValEfetivo(p){
+  if(!p||!p.tech)return 0.05;
+  if(p.tech.formulaTipo==='base_x_percentual'){
+    return (p.tech.val||0)*((p.tech.percentual||0)/100);
+  }
+  return p.tech.val||0.05;
+}
+// Rótulo exibido para a política tech de um parceiro (ex.: "R$0,05/bônus" ou "R$0,75/bônus × 10%").
+function techPolLabel(p){
+  if(!p||!p.tech)return 'R$0,05/bônus';
+  if(p.tech.formulaTipo==='base_x_percentual'){
+    return 'R$'+(p.tech.val||0).toFixed(2)+'/bônus × '+(p.tech.percentual||0)+'%';
+  }
+  return 'R$'+(p.tech.val||0.05).toFixed(2)+'/bônus';
+}
+
 function buildTechMap(){
   TECH_POL_MAP={};
   PARCEIROS_CONTRATO=[];
@@ -4152,12 +4543,17 @@ function buildTechMap(){
     TECH_POL_MAP[nomeLow]=p.nome;
     PARCEIROS_CONTRATO.push(nomeLow);
   });
-  // Adiciona aliases do mapa fixo — somente se o parceiro destino existir em P com tech ativo
-  // Exceto parceiros Linx (agrupamento próprio, contrato sempre ativo)
-  var SEM_CONTRATO_ATIVO=['DataSystem','LaserChip','NuvemShop','TOTVS','Varejonline','VTEX - V2'];
-  Object.keys(INTEG_ALIAS_MAP).forEach(function(alias){
-    var nomeParceiro=INTEG_ALIAS_MAP[alias];
-    if(SEM_CONTRATO_ATIVO.includes(nomeParceiro))return;
+  // Adiciona os "baldes" cadastrados em parceiro_aliases (ALIAS_BUCKET, carregado do Supabase) —
+  // só entram se o alias estiver ativo E o parceiro dono do alias tiver contrato tech ativo no banco.
+  // Isso substitui o mapa fixo INTEG_ALIAS_MAP + a lista solta SEM_CONTRATO_ATIVO: um parceiro sem
+  // tech cadastrado (ex.: DataSystem) fica de fora automaticamente, sem precisar de exceção no código.
+  Object.keys(ALIAS_BUCKET).forEach(function(alias){
+    var meta=ALIAS_BUCKET[alias];
+    if(!meta.ativo)return;
+    var parcDestino=P.find(function(p){return p.id===meta.parceiroId;});
+    if(!parcDestino||!parcDestino.tech)return;
+    if(parcDestino.status&&parcDestino.status!=='Ativo')return;
+    var nomeParceiro=meta.bucketNome;
     TECH_POL_MAP[alias]=nomeParceiro;
     if(!PARCEIROS_CONTRATO.includes(alias))PARCEIROS_CONTRATO.push(alias);
     // Garante que o parceiro destino tambem esta no mapa
@@ -4241,13 +4637,9 @@ function calcTech(rows,arq){
     if(!PARCEIROS_CONTRATO.includes(integ))return;
     var nomeParceiro=TECH_POL_MAP[integ];
     if(!nomeParceiro)return;
-    // Busca o parceiro no banco para pegar o tech_val correto
+    // Busca o parceiro no banco para pegar o valor/fórmula corretos
     var parcObj=P.find(function(p){return p.nome===nomeParceiro&&p.tech;});
-    // id-first (imune a rename); cai para o nome se o parceiro não foi encontrado em P.
-    var _isWakeRow=parcObj?(parcObj.id===WAKE_ID):(nomeParceiro.toLowerCase()==='wake');
-    var techVal=parcObj&&parcObj.tech?parcObj.tech.val:0.05;
-    // Wake: comissão = qtd * R$0,75 * 10% = R$0,075/bônus
-    if(_isWakeRow)techVal=0.75*0.10;
+    var techVal=techValEfetivo(parcObj);
     var dt=cData?parseMesTech(r[cData]):null;
     if(!dt)return;
     // Verifica status e vigência do contrato tech
@@ -4304,7 +4696,8 @@ async function registrarTech(){
     var techVal=typeof r.techVal==='number'?r.techVal:0.05;
     var total=r.qtd*techVal;
     var parceiroIdTech=resolveParceiroId(r.parceiro);
-    var polLabel=(parceiroIdTech!=null&&parceiroIdTech===WAKE_ID)?'R$0,75/bônus × 10%':'R$'+techVal.toFixed(2)+'/bônus';
+    var _pObjTech=parceiroIdTech!=null?P.find(function(p){return p.id===parceiroIdTech;}):null;
+    var polLabel=techPolLabel(_pObjTech);
     inserts.push({parceiro:r.parceiro,tipo:'tech',mes:r.mes,ano:r.ano,total:total,politica:polLabel,qtd_bonus:r.qtd,base_receita:0,arquivo:arq,parceiro_id:parceiroIdTech});
     Object.keys(r.lojas).forEach(function(loja){
       var q=r.lojas[loja];
