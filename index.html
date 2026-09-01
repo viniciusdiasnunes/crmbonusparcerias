@@ -2089,7 +2089,10 @@ function abrirDetalheAdim(parceiro, mesIdx){
   const totalCom=itens.reduce((s,i)=>s+i.comissao,0);
   const totalBase=itens.reduce((s,i)=>s+i.val,0);
   document.getElementById('biz-det-title').textContent=parceiro+' — '+MESES_LABEL[mesIdx];
-  document.getElementById('biz-det-sub').textContent=itens.length+' cliente'+(itens.length!==1?'s encontrados':'encontrado')+' no relatório de adimplência';
+  const nClientesUnicos=new Set(itens.map(i=>i.cnpj)).size;
+  const subCliente=nClientesUnicos+' cliente'+(nClientesUnicos!==1?'s':'');
+  const subPagto=itens.length!==nClientesUnicos?' ('+itens.length+' pagamentos)':'';
+  document.getElementById('biz-det-sub').textContent=subCliente+subPagto+' encontrado'+(nClientesUnicos!==1?'s':'')+' no relatório de adimplência';
   document.getElementById('biz-det-total').textContent=brl(totalCom);
   document.getElementById('biz-det-total-base').textContent=brl(totalBase);
   document.getElementById('biz-det-base-wrap').style.display='block';
