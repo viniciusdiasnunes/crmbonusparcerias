@@ -875,6 +875,19 @@ body.viewer-mode .edit-only{display:none!important;}
             <div class="fgrp"><label class="fl">Início da vigência</label><input class="fi" id="m-tech-vig-ini" type="date"></div>
             <div class="fgrp"><label class="fl">Fim da vigência</label><input class="fi" id="m-tech-vig-fim" type="date"></div>
           </div>
+          <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--bdr)">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--n500);margin-bottom:4px">Variantes de integração</div>
+            <div style="font-size:10px;color:var(--n500);margin-bottom:8px">Cada linha é um texto que pode aparecer na coluna "Integração" do relatório de bônus. Variantes com o mesmo Grupo aparecem agrupadas na tela de Comissão de Integração.</div>
+            <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 50px 26px;gap:6px;margin-bottom:4px">
+              <div style="font-size:9px;color:var(--n300);text-transform:uppercase">Texto no relatório</div>
+              <div style="font-size:9px;color:var(--n300);text-transform:uppercase">Rótulo exibido</div>
+              <div style="font-size:9px;color:var(--n300);text-transform:uppercase">Grupo</div>
+              <div style="font-size:9px;color:var(--n300);text-transform:uppercase">Ativo</div>
+              <div></div>
+            </div>
+            <div id="m-tech-aliases-tbody"></div>
+            <button type="button" class="btn btn-g" style="margin-top:2px;font-size:11px;padding:4px 10px" onclick="addAliasRow()">+ Adicionar variante</button>
+          </div>
         </div>
       </div>
       <div class="contrato-section">
@@ -1466,13 +1479,31 @@ async function carregarParceirosSupabase(){
 var ALIAS_TO_ID = {};
 var WAKE_ID = null;
 
+// Metadados de agrupamento/relatório por alias — substitui INTEG_ALIAS_MAP + LINX_GROUPS + LINX_LABELS + SEM_CONTRATO_ATIVO.
+// Chave = alias em minúsculas. Valor = {parceiroId, bucketNome, bucketLabel, groupLabel, ordem, ativo}.
+// bucketNome é o valor gravado em comissoes.parceiro (mantém compat com histórico já salvo);
+// bucketLabel é o rótulo exibido; groupLabel agrupa visualmente (ex.: "Linx Enterprise"), null = balde solto.
+var ALIAS_BUCKET = {};
+
 // Carrega os apelidos conhecidos de parceiro (substitui os mapas NOME_LEGADO/INTEG_ALIAS_MAP como fonte única).
 async function carregarAliasesSupabase(){
   try{
-    const {data,error}=await sb.from('parceiro_aliases').select('parceiro_id,alias');
+    const {data,error}=await sb.from('parceiro_aliases').select('parceiro_id,alias,bucket_nome,bucket_label,group_label,ordem,ativo');
     if(error)throw error;
     ALIAS_TO_ID={};
-    (data||[]).forEach(function(r){ ALIAS_TO_ID[String(r.alias).toLowerCase().trim()]=r.parceiro_id; });
+    ALIAS_BUCKET={};
+    (data||[]).forEach(function(r){
+      const key=String(r.alias).toLowerCase().trim();
+      ALIAS_TO_ID[key]=r.parceiro_id;
+      ALIAS_BUCKET[key]={
+        parceiroId:r.parceiro_id,
+        bucketNome:r.bucket_nome||r.alias,
+        bucketLabel:r.bucket_label||r.bucket_nome||r.alias,
+        groupLabel:r.group_label||null,
+        ordem:r.ordem||0,
+        ativo:r.ativo!==false
+      };
+    });
   }catch(e){ console.warn('Supabase aliases:',e.message); }
 }
 
@@ -2526,6 +2557,75 @@ function toggleContrato(t){
   const on=document.getElementById(`m-${t}-on`).checked;
   document.getElementById(`m-${t}-fields`).style.display=on?'grid':'none';
 }
+
+// ── Variantes de integração (parceiro_aliases) — editadas junto com o parceiro ──
+var _mAliases=[];      // {sbId(null=novo), alias, bucketLabel, groupLabel, ativo, bucketNome, ordem}
+var _mAliasesRemovidos=[]; // sbIds de linhas originais removidas nesta edição
+function renderAliasRows(){
+  const tbody=document.getElementById('m-tech-aliases-tbody');
+  if(!tbody)return;
+  if(!_mAliases.length){
+    tbody.innerHTML='<div style="font-size:11px;color:var(--n300);padding:4px 0 8px">Nenhuma variante cadastrada — o relatório só reconhece o nome exato do parceiro.</div>';
+    return;
+  }
+  tbody.innerHTML=_mAliases.map(function(a,i){
+    return '<div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 50px 26px;gap:6px;align-items:center;margin-bottom:6px">'
+      +'<input class="fi" style="font-size:11px;padding:4px 6px" value="'+escHtml(a.alias)+'" placeholder="ex: linx degust" oninput="_mAliasEdit('+i+',\'alias\',this.value)">'
+      +'<input class="fi" style="font-size:11px;padding:4px 6px" value="'+escHtml(a.bucketLabel)+'" placeholder="ex: Degust" oninput="_mAliasEdit('+i+',\'bucketLabel\',this.value)">'
+      +'<input class="fi" style="font-size:11px;padding:4px 6px" value="'+escHtml(a.groupLabel||'')+'" placeholder="opcional" oninput="_mAliasEdit('+i+',\'groupLabel\',this.value)">'
+      +'<label class="toggle" style="transform:scale(0.75)"><input type="checkbox" '+(a.ativo?'checked':'')+' onchange="_mAliasEdit('+i+',\'ativo\',this.checked)"><span class="slider"></span></label>'
+      +'<button type="button" class="xb" style="font-size:14px" onclick="_mAliasRemove('+i+')" title="Remover variante">×</button>'
+    +'</div>';
+  }).join('');
+}
+function _mAliasEdit(i,field,val){ if(_mAliases[i])_mAliases[i][field]=val; }
+function _mAliasRemove(i){
+  const a=_mAliases[i];
+  if(a&&a.sbId)_mAliasesRemovidos.push(a.sbId);
+  _mAliases.splice(i,1);
+  renderAliasRows();
+}
+function addAliasRow(){
+  _mAliases.push({sbId:null,alias:'',bucketLabel:'',groupLabel:'',ativo:true,bucketNome:null,ordem:_mAliases.length});
+  renderAliasRows();
+}
+async function carregarAliasesDoParceiro(parceiroId){
+  _mAliases=[];_mAliasesRemovidos=[];
+  try{
+    const {data,error}=await sb.from('parceiro_aliases').select('id,alias,bucket_nome,bucket_label,group_label,ordem,ativo').eq('parceiro_id',parceiroId).order('ordem');
+    if(error)throw error;
+    _mAliases=(data||[]).map(function(r){
+      return {sbId:r.id,alias:r.alias,bucketLabel:r.bucket_label||r.alias,groupLabel:r.group_label||'',ativo:r.ativo!==false,bucketNome:r.bucket_nome||r.alias,ordem:r.ordem||0};
+    });
+  }catch(e){ console.warn('Supabase parceiro_aliases (edição):',e.message); }
+  renderAliasRows();
+}
+// Salva as variantes de integração deste parceiro no Supabase (chamado depois de salvar o parceiro em si).
+async function salvarAliasesDoParceiro(parceiroId){
+  try{
+    for(const sbId of _mAliasesRemovidos){
+      await sb.from('parceiro_aliases').delete().eq('id',sbId);
+    }
+    for(let i=0;i<_mAliases.length;i++){
+      const a=_mAliases[i];
+      const aliasTxt=(a.alias||'').trim();
+      if(!aliasTxt)continue; // linha em branco — ignora
+      const bucketLabel=(a.bucketLabel||aliasTxt).trim();
+      const groupLabel=(a.groupLabel||'').trim()||null;
+      // Mantém o bucket_nome já existente (não quebra histórico já salvo em comissoes);
+      // só gera um novo para variantes recém-criadas.
+      const bucketNome=a.bucketNome||(groupLabel?groupLabel+' — '+bucketLabel:bucketLabel);
+      const payload={parceiro_id:parceiroId,alias:aliasTxt,bucket_nome:bucketNome,bucket_label:bucketLabel,group_label:groupLabel,ordem:i,ativo:!!a.ativo};
+      if(a.sbId){
+        await sb.from('parceiro_aliases').update(payload).eq('id',a.sbId);
+      } else {
+        await sb.from('parceiro_aliases').insert(payload);
+      }
+    }
+    await carregarAliasesSupabase();
+  }catch(e){ showSync('⚠ Erro ao salvar variantes de integração: '+e.message,false); }
+}
+
 function openM(mode,id=null){
   eid=id;
   document.getElementById('m-title').textContent=mode==='add'?'Novo Parceiro':'Editar Parceiro';
@@ -2553,11 +2653,13 @@ function openM(mode,id=null){
     document.getElementById('m-biz-on').checked=bizOn;
     document.getElementById('m-biz-fields').style.display=bizOn?'grid':'none';
     if(p.biz){document.getElementById('m-biz-pct').value=p.biz.pct||'';document.getElementById('m-biz-vig-ini').value=p.biz.vigIni||'';document.getElementById('m-biz-vig-fim').value=p.biz.vigFim||'';}
+    if(p._sbId)carregarAliasesDoParceiro(p._sbId); else {_mAliases=[];_mAliasesRemovidos=[];renderAliasRows();}
   } else {
     fields.forEach(f=>document.getElementById(f).value='');
     document.getElementById('m-status').value='Assinado';
     ['m-tech-on','m-biz-on'].forEach(f=>document.getElementById(f).checked=false);
     ['m-tech-fields','m-biz-fields'].forEach(f=>document.getElementById(f).style.display='none');
+    _mAliases=[];_mAliasesRemovidos=[];renderAliasRows();
   }
   document.getElementById('modal').classList.add('open');
 }
@@ -2579,19 +2681,24 @@ async function salvar(){
     biz:bizOn?{pol:'',pct:parseFloat(document.getElementById('m-biz-pct').value)||10,vigIni:document.getElementById('m-biz-vig-ini').value,vigFim:document.getElementById('m-biz-vig-fim').value}:null,
     renovacaoAuto:document.getElementById('m-renovacao-auto').checked,
   };
+  let _sbIdParaAliases=null;
   if(eid){
     const idx=P.findIndex(p=>p.id===eid);
     if(idx>=0){
       d._sbId=P[idx]._sbId;
       Object.assign(P[idx],d);
       await salvarSupabase(P[idx]);
+      _sbIdParaAliases=P[idx]._sbId;
     }
   } else {
     const novo={id:Date.now(),...d};
     P.push(novo);
     const res=await salvarSupabase(novo);
     if(res&&res.id)novo._sbId=res.id;
+    _sbIdParaAliases=novo._sbId;
   }
+  if(_sbIdParaAliases)await salvarAliasesDoParceiro(_sbIdParaAliases);
+  buildTechMap();rBonusTech();
   closeM();rC();
 }
 
@@ -3111,22 +3218,24 @@ function rBonusTech(){
   const sortNome=sortIcon('bt','nome');
   const sortTot=sortIcon('bt','total');
 
-  // Grupos Linx: agrupa visualmente com cabeçalho e subtotal
-  const LINX_GROUPS={
-    'Linx Retail':['Linx Retail — Seta','Linx Retail — Seta V2','Linx Retail — Microvix','Linx Retail — Microvix V2'],
-    'Linx Enterprise':['Linx Enterprise — Millenium','Linx Enterprise — Omni Pos','Linx Enterprise — Linx Pos','Linx Enterprise — Linx Pos V2','Linx Enterprise — Store X']
-  };
-  const LINX_LABELS={
-    'Linx Retail — Seta':'Seta',
-    'Linx Retail — Seta V2':'Seta V2',
-    'Linx Retail — Microvix':'Microvix',
-    'Linx Retail — Microvix V2':'Microvix V2',
-    'Linx Enterprise — Millenium':'Millenium',
-    'Linx Enterprise — Omni Pos':'Omni Pos',
-    'Linx Enterprise — Linx Pos':'Linx Pos',
-    'Linx Enterprise — Linx Pos V2':'Linx Pos V2',
-    'Linx Enterprise — Store X':'Store X'
-  };
+  // Grupos de exibição: montados a partir de ALIAS_BUCKET (tabela parceiro_aliases no Supabase),
+  // não mais de um mapa fixo no código — editar o agrupamento/rótulo agora é uma tela, não um deploy.
+  const LINX_GROUPS={};
+  const LINX_LABELS={};
+  const _bucketOrdem={};
+  Object.keys(ALIAS_BUCKET).forEach(function(alias){
+    const meta=ALIAS_BUCKET[alias];
+    if(!meta.ativo)return;
+    if(!LINX_LABELS[meta.bucketNome])LINX_LABELS[meta.bucketNome]=meta.bucketLabel;
+    if(meta.groupLabel){
+      if(!LINX_GROUPS[meta.groupLabel])LINX_GROUPS[meta.groupLabel]=[];
+      if(!LINX_GROUPS[meta.groupLabel].includes(meta.bucketNome))LINX_GROUPS[meta.groupLabel].push(meta.bucketNome);
+      _bucketOrdem[meta.bucketNome]=meta.ordem;
+    }
+  });
+  Object.keys(LINX_GROUPS).forEach(function(g){
+    LINX_GROUPS[g].sort(function(a,b){return(_bucketOrdem[a]||0)-(_bucketOrdem[b]||0);});
+  });
   const linxNomes=Object.values(LINX_GROUPS).flat();
   const linxRendered=new Set();
 
@@ -4102,8 +4211,9 @@ var INTEG_ALIAS_MAP={
   'linx microvix v2'       :'Linx Retail — Microvix V2',
   // Linx Enterprise — Millenium
   'linx millenium v2'      :'Linx Enterprise — Millenium',
-  'linx degust'            :'Linx Enterprise — Millenium',
-  'linx degust v2'         :'Linx Enterprise — Millenium',
+  // Linx Degust — produto separado, não faz parte do grupo Linx Enterprise
+  'linx degust'            :'Linx Degust',
+  'linx degust v2'         :'Linx Degust V2',
   // Linx Enterprise — variantes individuais
   'linx omni pos'          :'Linx Enterprise — Omni Pos',
   'linx pos'               :'Linx Enterprise — Linx Pos',
@@ -4134,12 +4244,17 @@ function buildTechMap(){
     TECH_POL_MAP[nomeLow]=p.nome;
     PARCEIROS_CONTRATO.push(nomeLow);
   });
-  // Adiciona aliases do mapa fixo — somente se o parceiro destino existir em P com tech ativo
-  // Exceto parceiros Linx (agrupamento próprio, contrato sempre ativo)
-  var SEM_CONTRATO_ATIVO=['DataSystem','LaserChip','NuvemShop','TOTVS','Varejonline','VTEX - V2'];
-  Object.keys(INTEG_ALIAS_MAP).forEach(function(alias){
-    var nomeParceiro=INTEG_ALIAS_MAP[alias];
-    if(SEM_CONTRATO_ATIVO.includes(nomeParceiro))return;
+  // Adiciona os "baldes" cadastrados em parceiro_aliases (ALIAS_BUCKET, carregado do Supabase) —
+  // só entram se o alias estiver ativo E o parceiro dono do alias tiver contrato tech ativo no banco.
+  // Isso substitui o mapa fixo INTEG_ALIAS_MAP + a lista solta SEM_CONTRATO_ATIVO: um parceiro sem
+  // tech cadastrado (ex.: DataSystem) fica de fora automaticamente, sem precisar de exceção no código.
+  Object.keys(ALIAS_BUCKET).forEach(function(alias){
+    var meta=ALIAS_BUCKET[alias];
+    if(!meta.ativo)return;
+    var parcDestino=P.find(function(p){return p.id===meta.parceiroId;});
+    if(!parcDestino||!parcDestino.tech)return;
+    if(parcDestino.status&&parcDestino.status!=='Ativo')return;
+    var nomeParceiro=meta.bucketNome;
     TECH_POL_MAP[alias]=nomeParceiro;
     if(!PARCEIROS_CONTRATO.includes(alias))PARCEIROS_CONTRATO.push(alias);
     // Garante que o parceiro destino tambem esta no mapa
